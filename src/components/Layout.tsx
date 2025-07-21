@@ -154,6 +154,20 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Page content */}
         <main className="flex-1 p-6">
           {children}
+          
+          {/* معلومات المطور في أسفل كل صفحة */}
+          <div className="mt-12 pt-8 border-t border-gray-200">
+            <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border p-4">
+              <div className="text-center text-sm text-gray-600">
+                <p className="font-medium">نظام إدارة الحضور الشامل</p>
+                <p className="mt-1">
+                  تطوير: <span className="font-semibold text-gray-800">Ahmed Hosny</span> | 
+                  هاتف: <span className="font-mono">01272774494 - 01002246668</span> | 
+                  بريد إلكتروني: <span className="font-mono">Sales@GO4Host.net</span>
+                </p>
+              </div>
+            </div>
+          </div>
         </main>
       </div>
     </div>

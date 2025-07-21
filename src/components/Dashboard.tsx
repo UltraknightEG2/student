@@ -8,11 +8,21 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  BookOpen
+  BookOpen,
+  Plus,
+  ScanLine,
+  FileText,
+  MessageSquare,
+  Settings,
+  Eye,
+  BarChart3,
+  Activity,
+  Target,
+  Zap
 } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
-  const { students, classes, sessions, attendance, getDashboardStats } = useApp();
+  const { students, classes, sessions, attendance, getDashboardStats, setCurrentPage, hasPermission } = useApp();
 
   const stats = getDashboardStats();
 
@@ -47,6 +57,56 @@ export const Dashboard: React.FC = () => {
     }
   ];
 
+  const quickActions = [
+    {
+      title: 'ماسح الحضور',
+      description: 'تسجيل حضور الطلاب',
+      icon: ScanLine,
+      color: 'bg-blue-500',
+      page: 'attendance-scanner',
+      permission: 'attendance'
+    },
+    {
+      title: 'إضافة طالب',
+      description: 'إضافة طالب جديد',
+      icon: Plus,
+      color: 'bg-green-500',
+      page: 'students',
+      permission: 'studentsEdit'
+    },
+    {
+      title: 'إنشاء جلسة',
+      description: 'إنشاء جلسة جديدة',
+      icon: Calendar,
+      color: 'bg-purple-500',
+      page: 'sessions',
+      permission: 'sessionsEdit'
+    },
+    {
+      title: 'التقارير',
+      description: 'عرض التقارير والإحصائيات',
+      icon: FileText,
+      color: 'bg-orange-500',
+      page: 'reports',
+      permission: 'reports'
+    },
+    {
+      title: 'الواتساب',
+      description: 'إرسال الرسائل',
+      icon: MessageSquare,
+      color: 'bg-green-600',
+      page: 'whatsapp',
+      permission: 'whatsapp'
+    },
+    {
+      title: 'الإعدادات',
+      description: 'إدارة النظام',
+      icon: Settings,
+      color: 'bg-gray-500',
+      page: 'settings',
+      permission: 'settings'
+    }
+  ];
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">

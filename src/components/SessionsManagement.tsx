@@ -515,6 +515,26 @@ export const SessionsManagement: React.FC = () => {
                                   </span>
                                 )}
                                 <button
+                                  onClick={() => recordAttendance({
+                                    studentId: student.id,
+                                    sessionId: showSessionDetails,
+                                    status: 'absent'
+                                  })}
+                                  className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                                >
+                                  تسجيل غياب
+                                </button>
+                                <button
+                                  onClick={() => recordAttendance({
+                                    studentId: student.id,
+                                    sessionId: showSessionDetails,
+                                    status: 'late'
+                                  })}
+                                  className="px-2 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors"
+                                >
+                                  تأخير
+                                </button>
+                                <button
                                   onClick={() => handleAddReport(student.id, student.name, showSessionDetails)}
                                   className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center"
                                 >
@@ -568,6 +588,52 @@ export const SessionsManagement: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                  
+                  {/* إضافة قسم الطلاب المتأخرين والمعذورين */}
+                  {sessionStudents.filter(s => s.attendanceStatus === 'late' || s.attendanceStatus === 'excused').length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-lg font-medium mb-4 text-yellow-600">
+                        الطلاب المتأخرون والمعذورون ({sessionStudents.filter(s => s.attendanceStatus === 'late' || s.attendanceStatus === 'excused').length})
+                      </h3>
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {sessionStudents.filter(s => s.attendanceStatus === 'late' || s.attendanceStatus === 'excused').map((student) => (
+                          <div key={student.id} className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-gray-900">{student.name}</p>
+                                <p className="text-sm text-gray-500">كود: {student.barcode}</p>
+                                <p className="text-xs text-yellow-600">
+                                  {student.attendanceStatus === 'late' ? 'متأخر' : 'معذور'}
+                                </p>
+                              </div>
+                              <div className="flex items-center space-x-2 space-x-reverse">
+                                <button
+                                  onClick={() => recordAttendance({
+                                    studentId: student.id,
+                                    sessionId: showSessionDetails,
+                                    status: 'present'
+                                  })}
+                                  className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                                >
+                                  تحويل لحاضر
+                                </button>
+                                <button
+                                  onClick={() => recordAttendance({
+                                    studentId: student.id,
+                                    sessionId: showSessionDetails,
+                                    status: 'absent'
+                                  })}
+                                  className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                                >
+                                  تحويل لغائب
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()}

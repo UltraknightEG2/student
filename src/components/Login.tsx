@@ -96,6 +96,22 @@ export const Login: React.FC = () => {
           <p className="text-xs text-gray-500">اسم المستخدم: admin</p>
           <p className="text-xs text-gray-500">كلمة المرور: admin123</p>
         </div>
+        
+        {/* معلومات المطور */}
+        <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-md border border-blue-200">
+          <div className="text-center text-sm text-gray-700">
+            <p className="font-medium text-blue-800">نظام إدارة الحضور الشامل</p>
+            <p className="mt-1 text-xs">
+              تطوير: <span className="font-semibold">Ahmed Hosny</span>
+            </p>
+            <p className="text-xs mt-1">
+              📞 01272774494 - 01002246668
+            </p>
+            <p className="text-xs">
+              📧 Sales@GO4Host.net
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

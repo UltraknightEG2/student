@@ -397,6 +397,26 @@ export const AttendanceScanner: React.FC = () => {
                             تعديل
                           </button>
                           <button 
+                            onClick={() => recordAttendance({
+                              studentId: student.id,
+                              sessionId: selectedSession,
+                              status: 'absent'
+                            })}
+                            className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors"
+                          >
+                            غياب
+                          </button>
+                          <button 
+                            onClick={() => recordAttendance({
+                              studentId: student.id,
+                              sessionId: selectedSession,
+                              status: 'late'
+                            })}
+                            className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 transition-colors"
+                          >
+                            تأخير
+                          </button>
+                          <button 
                             onClick={() => handleDeleteAttendance(student.attendanceId || student.id, student.name)}
                             className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded hover:bg-red-200 transition-colors"
                           >
