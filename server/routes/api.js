@@ -780,7 +780,7 @@ router.get('/sessions/:id/students', async (req, res) => {
     const query = `
       SELECT 
         s.id, s.name, s.barcode, s.parent_phone,
-        a.id as attendance_id, a.status as attendance_status, a.timestamp as attendance_time
+        a.id as attendance_id, a.status as attendance_status, a.record_time as attendance_time
       FROM students s
       LEFT JOIN attendance a ON s.id = a.student_id AND a.session_id = ?
       WHERE s.class_id = ? AND s.is_active = TRUE
@@ -815,7 +815,7 @@ router.get('/attendance', async (req, res) => {
   try {
     const query = `
       SELECT a.*, s.name as student_name, se.start_time as session_start,
-             a.record_time as timestamp
+             a.record_time as record_time
       FROM attendance a
       JOIN students s ON a.student_id = s.id
       JOIN sessions se ON a.session_id = se.id
@@ -854,7 +854,7 @@ router.post('/attendance', async (req, res) => {
     
     if (existing.length > 0) {
       // تحديث التسجيل الموجود
-      const updateQuery = 'UPDATE attendance SET status = ?, notes = ?, timestamp = CURRENT_TIMESTAMP WHERE student_id = ? AND session_id = ?';
+      const updateQuery = 'UPDATE attendance SET status = ?, notes = ?, record_time = CURRENT_TIMESTAMP WHERE student_id = ? AND session_id = ?';
       await executeQuery(updateQuery, [status, notes || null, studentId, sessionId]);
       res.json({ success: true, data: { id: existing[0].id } });
     } else {

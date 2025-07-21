@@ -224,7 +224,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setStudents(processData(studentsRes.data || [], ['createdAt', 'dateOfBirth']));
       setClasses(processData(classesRes.data || [], ['createdAt']));
       setSessions(processData(sessionsRes.data || [], ['createdAt', 'startTime', 'endTime']));
-      setAttendance(processData(attendanceRes.data || [], ['timestamp']));
+      setAttendance(processData(attendanceRes.data || [], ['timestamp', 'record_time']));
       setReports(processData(reportsRes.data || [], ['createdAt']));
       setUsers(processData(usersRes.data || [], ['createdAt']));
       setTeachers(processData(teachersRes.data || [], ['createdAt']));
