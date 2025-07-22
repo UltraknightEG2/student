@@ -1,13 +1,13 @@
 const { testConnection, executeQuery } = require('../server/config/database');
 
 async function testDatabase() {
-  console.log('🧪 بدء اختبار قاعدة البيانات...');
+  console.log('🧪 بدء اختبار قاعدة بيانات SQLite...');
   console.log('=' .repeat(50));
   
   try {
     // اختبار الاتصال
     console.log('1️⃣ اختبار الاتصال الأساسي...');
-    const connected = await testConnection();
+    const connected = testConnection();
     
     if (!connected) {
       console.log('❌ فشل في الاتصال بقاعدة البيانات');
@@ -16,19 +16,19 @@ async function testDatabase() {
     
     // اختبار الجداول
     console.log('\n2️⃣ اختبار وجود الجداول...');
-    const tables = await executeQuery('SHOW TABLES');
+    const tables = executeQuery("SELECT name FROM sqlite_master WHERE type='table'");
     console.log('📋 الجداول الموجودة:', tables.length);
     tables.forEach(table => {
-      const tableName = Object.values(table)[0];
+      const tableName = table.name;
       console.log(`   ✅ ${tableName}`);
     });
     
     // اختبار البيانات
     console.log('\n3️⃣ اختبار البيانات...');
-    const users = await executeQuery('SELECT COUNT(*) as count FROM users');
-    const students = await executeQuery('SELECT COUNT(*) as count FROM students');
-    const classes = await executeQuery('SELECT COUNT(*) as count FROM classes');
-    const sessions = await executeQuery('SELECT COUNT(*) as count FROM sessions');
+    const users = executeQuery('SELECT COUNT(*) as count FROM users');
+    const students = executeQuery('SELECT COUNT(*) as count FROM students');
+    const classes = executeQuery('SELECT COUNT(*) as count FROM classes');
+    const sessions = executeQuery('SELECT COUNT(*) as count FROM sessions');
     
     console.log('📊 إحصائيات البيانات:');
     console.log(`   👥 المستخدمين: ${users[0].count}`);
@@ -38,7 +38,7 @@ async function testDatabase() {
     
     // اختبار المستخدم الافتراضي
     console.log('\n4️⃣ اختبار المستخدم الافتراضي...');
-    const adminUser = await executeQuery('SELECT username, name, role FROM users WHERE username = ?', ['admin']);
+    const adminUser = executeQuery('SELECT username, name, role FROM users WHERE username = ?', ['admin']);
     if (adminUser.length > 0) {
       console.log('✅ المستخدم الافتراضي موجود:', adminUser[0]);
     } else {
@@ -48,28 +48,37 @@ async function testDatabase() {
     // اختبار الأداء
     console.log('\n5️⃣ اختبار الأداء...');
     const startTime = Date.now();
-    await executeQuery('SELECT * FROM students LIMIT 10');
+    executeQuery('SELECT * FROM students LIMIT 10');
     const endTime = Date.now();
     const responseTime = endTime - startTime;
     
     console.log(`⚡ وقت الاستجابة: ${responseTime}ms`);
-    if (responseTime < 1000) {
+    if (responseTime < 100) {
       console.log('✅ الأداء ممتاز');
-    } else if (responseTime < 3000) {
+    } else if (responseTime < 500) {
       console.log('⚠️ الأداء مقبول');
     } else {
-      console.log('❌ الأداء بطيء - قد تحتاج لتحسين الاتصال');
+      console.log('❌ الأداء بطيء - قد تحتاج لتحسين قاعدة البيانات');
     }
     
-    console.log('\n🎉 اكتمل اختبار قاعدة البيانات بنجاح!');
+    // اختبار سلامة قاعدة البيانات
+    console.log('\n6️⃣ اختبار سلامة قاعدة البيانات...');
+    const integrityCheck = executeQuery('PRAGMA integrity_check');
+    if (integrityCheck[0].integrity_check === 'ok') {
+      console.log('✅ قاعدة البيانات سليمة');
+    } else {
+      console.log('⚠️ مشاكل في سلامة قاعدة البيانات');
+    }
+    
+    console.log('\n🎉 اكتمل اختبار قاعدة بيانات SQLite بنجاح!');
     console.log('=' .repeat(50));
     
   } catch (error) {
     console.error('\n❌ فشل اختبار قاعدة البيانات:', error.message);
     console.log('💡 تحقق من:');
-    console.log('   - إعدادات .env');
-    console.log('   - حالة الاتصال بالإنترنت');
-    console.log('   - صحة بيانات قاعدة البيانات');
+    console.log('   - وجود ملف قاعدة البيانات');
+    console.log('   - صلاحيات الوصول للملف');
+    console.log('   - تشغيل npm run db:setup أولاً');
     process.exit(1);
   }
 }

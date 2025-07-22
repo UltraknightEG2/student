@@ -11,16 +11,21 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node server/server.js",
-    "db:setup": "mysql -u root -p < database/attendance_system.sql",
+    "db:setup": "node scripts/setup-sqlite.js",
+    "db:test": "node scripts/test-database.js",
+    "db:backup": "node scripts/backup-sqlite.js",
+    "db:restore": "node scripts/restore-sqlite.js",
+    "db:stats": "node scripts/sqlite-stats.js",
     "whatsapp:init": "node scripts/init-whatsapp.js",
     "whatsapp:test": "node scripts/test-whatsapp.js",
     "whatsapp:clean": "node scripts/clean-tokens.js",
     "whatsapp:status": "node scripts/check-status.js",
-    "db:test": "node scripts/test-database.js",
-    "db:migrate": "node scripts/migrate-to-hostinger.js"
+    "convert:mysql-to-sqlite": "node scripts/convert-mysql-to-sqlite.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.7.0",
+    "better-sqlite3": "^12.2.0",
     "concurrently": "^9.1.0",
     "cors": "^2.8.5",
     "date-fns": "^3.6.0",
@@ -28,11 +33,12 @@
     "express": "^4.21.2",
     "fs-extra": "^11.3.0",
     "lucide-react": "^0.468.0",
-    "mysql2": "^3.12.0",
     "nodemon": "^3.1.7",
     "puppeteer": "^24.14.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "sqlite3": "^5.1.7",
+    "sqlite3": "^5.1.7",
     "venom-bot": "^5.3.0"
   },
   "devDependencies": {
