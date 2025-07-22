@@ -167,45 +167,11 @@ async function executeQuery(query, params = []) {
       } else if (error.code === 'ER_LOCK_WAIT_TIMEOUT') {
         throw new Error('انتهت مهلة انتظار القفل - يرجى المحاولة مرة أخرى');
       }
-    }
-    
     } else if (error.code === 'ECONNREFUSED') {
       console.log('💡 نصيحة: تأكد من تشغيل MySQL في XAMPP');
     } else if (error.code === 'ER_ACCESS_DENIED_ERROR') {
       console.log('💡 نصيحة: تحقق من اسم المستخدم وكلمة المرور في ملف .env');
     }
-    
-    console.log('🛑 إيقاف الخادم بسبب فشل الاتصال بقاعدة البيانات');
-    process.exit(1);
-    return false;
-  }
-}
-
-// دالة تنفيذ الاستعلامات
-async function executeQuery(query, params = []) {
-  try {
-    console.log('🔍 تنفيذ الاستعلام:', query.substring(0, 100) + (query.length > 100 ? '...' : ''));
-    console.log('📊 المعاملات:', params);
-    
-    const [results] = await pool.execute(query, params);
-    
-    if (Array.isArray(results)) {
-      console.log('✅ نتائج الاستعلام: تم جلب', results.length, 'صف');
-    } else {
-      console.log('✅ نتائج الاستعلام:', results.affectedRows || 'تم التنفيذ');
-    }
-    
-    return results;
-  } catch (error) {
-    console.error('❌ خطأ في تنفيذ الاستعلام:', error);
-    console.error('📝 الاستعلام:', query.substring(0, 200) + (query.length > 200 ? '...' : ''));
-    console.error('📊 المعاملات:', params);
-    console.error('تفاصيل الخطأ:', {
-      code: error.code,
-      errno: error.errno,
-      sqlMessage: error.sqlMessage,
-      sqlState: error.sqlState
-    });
     
     // تحسين رسائل الخطأ للكلمات المحجوزة
     if (error.code === 'ER_PARSE_ERROR' && error.sqlMessage && error.sqlMessage.includes('timestamp')) {
