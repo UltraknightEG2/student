@@ -15,7 +15,9 @@
     "whatsapp:init": "node scripts/init-whatsapp.js",
     "whatsapp:test": "node scripts/test-whatsapp.js",
     "whatsapp:clean": "node scripts/clean-tokens.js",
-    "whatsapp:status": "node scripts/check-status.js"
+    "whatsapp:status": "node scripts/check-status.js",
+    "db:test": "node scripts/test-database.js",
+    "db:migrate": "node scripts/migrate-to-hostinger.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
