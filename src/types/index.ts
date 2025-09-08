@@ -52,6 +52,15 @@ export interface Location {
   isActive?: boolean;
 }
 
+export interface Grade {
+  id: string;
+  name: string;
+  level: number;
+  description?: string;
+  createdAt: Date;
+  isActive?: boolean;
+}
+
 export interface Teacher {
   id: string;
   name: string;
@@ -86,6 +95,10 @@ export interface Class {
   teacherName?: string;
   subjectId?: string;
   subjectName?: string;
+  gradeId?: string;
+  gradeName?: string;
+  locationId?: string;
+  locationName?: string;
   maxCapacity: number;
   createdAt: Date;
   isActive?: boolean;
@@ -125,6 +138,8 @@ export interface Report {
   studentId: string;
   sessionId: string;
   teacherRating: number;
+  recitationScore?: number;
+  recitationScore?: number;
   quizScore?: number;
   participation: number;
   behavior: string;

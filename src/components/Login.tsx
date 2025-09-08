@@ -92,9 +92,9 @@ export const Login: React.FC = () => {
         </form>
 
         <div className="mt-8 p-4 bg-gray-50 rounded-md">
-          <p className="text-sm text-gray-600 mb-2">بيانات تجريبية:</p>
-          <p className="text-xs text-gray-500">اسم المستخدم: admin</p>
-          <p className="text-xs text-gray-500">كلمة المرور: admin123</p>
+          <p className="text-sm text-gray-600 mb-2"></p>
+          <p className="text-xs text-gray-500"></p>
+          <p className="text-xs text-gray-500"></p>
         </div>
         
         {/* معلومات المطور */}

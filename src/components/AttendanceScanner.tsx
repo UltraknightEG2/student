@@ -3,7 +3,7 @@ import { useApp } from '../contexts/AppContext';
 import { ScanLine, Check, X, AlertCircle, Users, Plus } from 'lucide-react';
 
 export const AttendanceScanner: React.FC = () => {
-  const { students, sessions, attendance, recordAttendance, deleteAttendance, classes, locations, addSession, getSessionStudents } = useApp();
+  const { students, sessions, attendance, recordAttendance, deleteAttendance, classes, locations, addSession, getSessionStudents, grades, teachers } = useApp();
   const [selectedSession, setSelectedSession] = useState('');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [lastScannedStudent, setLastScannedStudent] = useState<string | null>(null);
@@ -20,7 +20,7 @@ export const AttendanceScanner: React.FC = () => {
   });
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // جلب طلاب الجلسة عند تغيير الجلسة المختارة
+  // جلب طلاب الحصة عند تغيير الحصة المختارة
   useEffect(() => {
     const loadSessionStudents = async () => {
       if (!selectedSession) {
@@ -30,12 +30,12 @@ export const AttendanceScanner: React.FC = () => {
       
       setLoadingStudents(true);
       try {
-        console.log('🔄 جلب طلاب الجلسة:', selectedSession);
+        console.log('🔄 جلب طلاب الحصة:', selectedSession);
         const students = await getSessionStudents(selectedSession);
-        console.log('👥 طلاب الجلسة المجلبة:', students);
+        console.log('👥 طلاب الحصة المجلبة:', students);
         setSessionStudents(students);
       } catch (error) {
-        console.error('❌ خطأ في جلب طلاب الجلسة:', error);
+        console.error('❌ خطأ في جلب طلاب الحصة:', error);
         setSessionStudents([]);
       } finally {
         setLoadingStudents(false);
@@ -53,14 +53,16 @@ export const AttendanceScanner: React.FC = () => {
 
   const activeSessions = sessions.filter(s => s.status === 'active');
 
-  // تحديث قائمة الجلسات لعرض الأسماء بشكل صحيح
+  // تحديث قائمة الحصص لعرض الأسماء بشكل صحيح
   const getSessionDisplayName = (session: any) => {
     const sessionClass = classes.find(c => c.id === session.classId);
-    const location = locations.find(l => l.id === session.locationId);
+    const location = locations.find(l => l.id === sessionClass.locationId);
+    const grade = grades.find(g => g.id === sessionClass?.gradeId);
+    const teacher = teachers.find(t => t.id === sessionClass?.teacherId);
     const startTime = new Date(session.startTime);
     
     if (isNaN(startTime.getTime())) {
-      return `${sessionClass?.name || 'فصل غير محدد'} - وقت غير صحيح`;
+      return `${sessionClass?.name || 'مجموعة غير محدد'} - ${grade?.name || ''} - ${location?.name || ''} - ${teacher?.name || ''} - وقت غير صحيح`;
     }
     
     const timeStr = startTime.toLocaleTimeString('en-GB', { 
@@ -70,7 +72,7 @@ export const AttendanceScanner: React.FC = () => {
     });
     const dateStr = startTime.toLocaleDateString('en-GB');
     
-    return `${sessionClass?.name || 'فصل غير محدد'} - ${timeStr} - ${dateStr}${location ? ` - ${location.name}` : ''}`;
+    return `${sessionClass?.name || 'مجموعة غير محدد'} - ${grade?.name || ''} - ${location?.name || ''} - ${teacher?.name || ''} - ${dateStr} - ${timeStr}`;
   };
 
   const handleBarcodeSubmit = (e: React.FormEvent) => {
@@ -84,10 +86,10 @@ export const AttendanceScanner: React.FC = () => {
       return;
     }
 
-    // التحقق من انتماء الطالب للفصل
+    // التحقق من انتماء الطالب للمجموعة
     const session = sessions.find(s => s.id === selectedSession);
     if (session && student.classId !== session.classId) {
-      showAlertMessage('هذا الطالب لا ينتمي لفصل هذه الجلسة', 'error');
+      showAlertMessage('هذا الطالب لا ينتمي لمجموعة هذه الحصة', 'error');
       setBarcodeInput('');
       return;
     }
@@ -152,9 +154,9 @@ export const AttendanceScanner: React.FC = () => {
         status: 'active'
       });
       setShowQuickAddSession(false);
-      showAlertMessage('تم إضافة الجلسة بنجاح', 'success');
+      showAlertMessage('تم إضافة الحصة بنجاح', 'success');
     } catch (error) {
-      showAlertMessage('حدث خطأ أثناء إضافة الجلسة', 'error');
+      showAlertMessage('حدث خطأ أثناء إضافة الحصة', 'error');
     }
   };
 
@@ -185,7 +187,7 @@ export const AttendanceScanner: React.FC = () => {
             <form onSubmit={handleQuickAddSession} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  الفصل *
+                  المجموعة *
                 </label>
                 <select
                   value={quickSessionData.classId}
@@ -193,7 +195,7 @@ export const AttendanceScanner: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 >
-                  <option value="">اختر الفصل</option>
+                  <option value="">اختر المجموعة</option>
                   {classes.map(cls => (
                     <option key={cls.id} value={cls.id}>{cls.name}</option>
                   ))}
@@ -251,7 +253,7 @@ export const AttendanceScanner: React.FC = () => {
                   type="submit"
                   className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors duration-200"
                 >
-                  إضافة الجلسة
+                  إضافة الحصة
                 </button>
                 <button
                   type="button"
@@ -294,7 +296,7 @@ export const AttendanceScanner: React.FC = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                اختر الجلسة
+                اختر الحصة
               </label>
               <select
                 value={selectedSession}
@@ -353,7 +355,7 @@ export const AttendanceScanner: React.FC = () => {
               </div>
             ) : selectedSession ? (
               <p className="text-gray-500 text-center py-8">
-                لا يوجد طلاب في هذه الجلسة
+                لا يوجد طلاب في هذه الحصة
               </p>
             ) : (
               <p className="text-gray-500 text-center py-8">

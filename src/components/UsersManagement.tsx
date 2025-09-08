@@ -233,15 +233,15 @@ export const UsersManagement: React.FC = () => {
                 students: { label: 'عرض الطلاب', group: 'students' },
                 studentsEdit: { label: 'تعديل الطلاب', group: 'students' },
                 studentsDelete: { label: 'حذف الطلاب', group: 'students' },
-                classes: { label: 'عرض الفصول', group: 'classes' },
-                classesEdit: { label: 'تعديل الفصول', group: 'classes' },
-                classesDelete: { label: 'حذف الفصول', group: 'classes' },
+                classes: { label: 'عرض المجموعات', group: 'classes' },
+                classesEdit: { label: 'تعديل المجموعات', group: 'classes' },
+                classesDelete: { label: 'حذف المجموعات', group: 'classes' },
                 teachers: { label: 'عرض المعلمين', group: 'teachers' },
                 teachersEdit: { label: 'تعديل المعلمين', group: 'teachers' },
                 teachersDelete: { label: 'حذف المعلمين', group: 'teachers' },
-                sessions: { label: 'عرض الجلسات', group: 'sessions' },
-                sessionsEdit: { label: 'تعديل الجلسات', group: 'sessions' },
-                sessionsDelete: { label: 'حذف الجلسات', group: 'sessions' },
+                sessions: { label: 'عرض الحصص', group: 'sessions' },
+                sessionsEdit: { label: 'تعديل الحصص', group: 'sessions' },
+                sessionsDelete: { label: 'حذف الحصص', group: 'sessions' },
                 attendance: { label: 'عرض الحضور', group: 'attendance' },
                 attendanceEdit: { label: 'تعديل الحضور', group: 'attendance' },
                 attendanceDelete: { label: 'حذف الحضور', group: 'attendance' },
@@ -325,7 +325,7 @@ export const UsersManagement: React.FC = () => {
       </div>
 
       {/* قائمة المستخدمين */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+      <div className="bg-white rounded-lg shadow-sm border overflow-hidden desktop-table">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -421,6 +421,86 @@ export const UsersManagement: React.FC = () => {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* عرض بطاقات للموبايل */}
+      <div className="mobile-cards">
+        {filteredUsers.map((user) => (
+          <div key={user.id} className="mobile-card">
+            <div className="mobile-card-header">
+              <div className="mobile-card-title flex items-center">
+                <div className="flex-shrink-0 h-8 w-8 ml-2">
+                  <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
+                    <User className="h-4 w-4 text-gray-600" />
+                  </div>
+                </div>
+                <div>
+                  <div className="font-medium">{user.name}</div>
+                  {user.id === currentUser?.id && (
+                    <div className="text-xs text-blue-600">(أنت)</div>
+                  )}
+                </div>
+              </div>
+              <div className="mobile-btn-group">
+                <button
+                  onClick={() => {/* عرض تفاصيل المستخدم */}}
+                  className="mobile-btn text-blue-600 hover:text-blue-900"
+                  title="عرض التفاصيل"
+                >
+                  <Eye className="h-4 w-4" />
+                </button>
+                {currentUser?.role === 'admin' && (
+                  <>
+                    <button
+                      onClick={() => handleManagePermissions(user)}
+                      className="mobile-btn text-purple-600 hover:text-purple-900"
+                      title="إدارة الصلاحيات"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleEdit(user)}
+                      className="mobile-btn text-green-600 hover:text-green-900"
+                      title="تعديل"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(user.id)}
+                      className="mobile-btn text-red-600 hover:text-red-900"
+                      title="حذف"
+                      disabled={user.id === currentUser?.id}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+            
+            <div className="mobile-card-content">
+              <div className="mobile-card-field">
+                <div className="mobile-card-label">اسم المستخدم</div>
+                <div className="mobile-card-value">{user.username}</div>
+              </div>
+              <div className="mobile-card-field">
+                <div className="mobile-card-label">الدور</div>
+                <div className="mobile-card-value">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
+                    <Shield className="h-3 w-3 ml-1" />
+                    {getRoleText(user.role)}
+                  </span>
+                </div>
+              </div>
+              <div className="mobile-card-field">
+                <div className="mobile-card-label">تاريخ الإنشاء</div>
+                <div className="mobile-card-value">
+                  {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-GB') : 'غير محدد'}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {filteredUsers.length === 0 && (

@@ -1,40 +1,44 @@
 const fs = require('fs-extra');
 const path = require('path');
+const config = require('../config/whatsapp-config'); // استدعاء الإعدادات
 
-async function cleanTokens() {
+async function cleanTokens(sessionName = null) {
   try {
-    const tokensPath = './tokens';
-    
+    const tokensRoot = config.folderNameToken || './tokens';
+    const targetPath = sessionName
+      ? path.join(tokensRoot, sessionName)
+      : tokensRoot;
+
     console.log('🧹 بدء تنظيف ملفات التوكن...');
-    
-    if (await fs.pathExists(tokensPath)) {
-      // إنشاء نسخة احتياطية قبل الحذف
-      const backupPath = `./tokens_backup_${Date.now()}`;
+    console.log(`🎯 المسار المستهدف: ${targetPath}`);
+
+    if (await fs.pathExists(targetPath)) {
+      const backupPath = `${targetPath}_backup_${Date.now()}`;
       console.log('💾 إنشاء نسخة احتياطية...');
-      await fs.copy(tokensPath, backupPath);
+      await fs.copy(targetPath, backupPath);
       console.log(`✅ تم إنشاء نسخة احتياطية في: ${backupPath}`);
-      
-      // حذف مجلد التوكن
-      await fs.remove(tokensPath);
+
+      await fs.remove(targetPath);
       console.log('🗑️ تم حذف مجلد التوكن');
-      
-      // إعادة إنشاء مجلد فارغ
-      await fs.ensureDir(tokensPath);
-      console.log('📁 تم إنشاء مجلد توكن جديد');
-      
+
+      if (!sessionName) {
+        await fs.ensureDir(tokensRoot);
+        console.log('📁 تم إنشاء مجلد توكن جديد');
+      }
+
       console.log('✅ تم تنظيف ملفات التوكن بنجاح!');
-      console.log('💡 يمكنك الآن إعادة تهيئة الواتساب');
     } else {
-      console.log('ℹ️ مجلد التوكن غير موجود');
+      console.log('ℹ️ مجلد التوكن غير موجود أو تم تحديد جلسة غير موجودة');
     }
-    
   } catch (error) {
     console.error('❌ خطأ في تنظيف التوكن:', error);
   }
 }
 
 if (require.main === module) {
-  cleanTokens();
+  // تمرير اسم الجلسة من CLI لو عايز
+  const sessionArg = process.argv[2] || null;
+  cleanTokens(sessionArg);
 }
 
 module.exports = cleanTokens;

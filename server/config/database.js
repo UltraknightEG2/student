@@ -1,114 +1,126 @@
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
+const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-console.log('🗄️ إعداد قاعدة بيانات SQLite...');
-
-// مسار قاعدة البيانات
-const dbPath = path.join(__dirname, '../../database/attendance_system.db');
-const dbDir = path.dirname(dbPath);
-
-// التأكد من وجود مجلد قاعدة البيانات
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-  console.log('📁 تم إنشاء مجلد قاعدة البيانات');
+// إعدادات قاعدة البيانات للإنتاج
+if (process.env.NODE_ENV === 'production') {
+  console.log('🔧 إعدادات قاعدة البيانات (الإنتاج):');
+  console.log('DB_HOST:', process.env.DB_HOST);
+  console.log('DB_USER:', process.env.DB_USER);
+  console.log('DB_NAME:', process.env.DB_NAME);
+  console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '[محدد]' : '[فارغ]');
 }
 
-console.log('📍 مسار قاعدة البيانات:', dbPath);
+// إعدادات قاعدة البيانات
+const dbConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'attendance_system',
+  charset: 'utf8mb4',
+  timezone: '+00:00',
+  multipleStatements: true,
+  supportBigNumbers: true,
+  bigNumberStrings: true,
+  dateStrings: false,
+  // إعدادات SSL للإنتاج
+  ssl: process.env.NODE_ENV === 'production' ? {
+    rejectUnauthorized: false
+  } : false
+};
 
-// إنشاء اتصال قاعدة البيانات
-let db;
-try {
-  db = new Database(dbPath, { 
-    verbose: process.env.NODE_ENV === 'development' ? console.log : null,
-    fileMustExist: false
-  });
-  
-  // إعدادات تحسين الأداء
-  db.pragma('journal_mode = WAL');
-  db.pragma('synchronous = NORMAL');
-  db.pragma('cache_size = 1000000');
-  db.pragma('temp_store = memory');
-  db.pragma('mmap_size = 268435456'); // 256MB
-  
-  console.log('✅ تم الاتصال بقاعدة بيانات SQLite بنجاح');
-} catch (error) {
-  console.error('❌ خطأ في إنشاء قاعدة البيانات:', error);
-  process.exit(1);
-}
+// إنشاء pool للاتصالات
+const pool = mysql.createPool({
+  ...dbConfig,
+  waitForConnections: true,
+  connectionLimit: process.env.NODE_ENV === 'production' ? 5 : 10,
+  queueLimit: 0,
+  acquireTimeout: 120000,
+  timeout: 120000
+});
+
+// معالجة أحداث Pool
+pool.on('connection', function (connection) {
+  console.log('🔗 اتصال جديد بقاعدة البيانات:', connection.threadId);
+});
+
+pool.on('error', function(err) {
+  console.error('❌ خطأ في pool قاعدة البيانات:', err);
+  if(err.code === 'PROTOCOL_CONNECTION_LOST') {
+    console.log('🔄 محاولة إعادة الاتصال...');
+  } else {
+    throw err;
+  }
+});
 
 // اختبار الاتصال
 async function testConnection() {
   try {
-    console.log('🧪 اختبار الاتصال بقاعدة البيانات SQLite...');
+    console.log('🧪 اختبار الاتصال بقاعدة البيانات...');
+    const connection = await pool.getConnection();
     
-    const result = db.prepare('SELECT 1 as test, datetime("now") as server_time').get();
-    console.log('📊 نتيجة الاختبار:', result);
+    // اختبار استعلام بسيط
+    const [rows] = await connection.execute('SELECT 1 as test');
+    console.log('📊 نتيجة الاختبار:', rows);
     
-    // التحقق من وجود الجداول
-    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
-    console.log('📋 الجداول الموجودة:', tables.length);
-    
-    if (tables.length === 0) {
-      console.log('⚠️ لا توجد جداول - يجب تشغيل إعداد قاعدة البيانات');
-      return false;
-    }
-    
-    console.log('✅ تم اختبار الاتصال بنجاح');
+    console.log('✅ تم الاتصال بقاعدة البيانات بنجاح');
+    connection.release();
     return true;
   } catch (error) {
-    console.error('❌ خطأ في اختبار الاتصال:', error);
+    console.error('❌ خطأ في الاتصال بقاعدة البيانات:', error);
+    console.error('تفاصيل الخطأ:', {
+      code: error.code,
+      errno: error.errno,
+      sqlMessage: error.sqlMessage,
+      sqlState: error.sqlState
+    });
+    console.error('❌ خطأ في الاتصال بقاعدة البيانات:');
+    console.error('   الرسالة:', error.message);
+    console.error('   الكود:', error.code);
+    console.error('   errno:', error.errno);
+    
+    if (error.code === 'ER_BAD_DB_ERROR') {
+      console.log('💡 نصيحة: تأكد من إنشاء قاعدة البيانات attendance_system في phpMyAdmin');
+    } else if (error.code === 'ECONNREFUSED') {
+      console.log('💡 نصيحة: تأكد من تشغيل MySQL في XAMPP');
+    } else if (error.code === 'ER_ACCESS_DENIED_ERROR') {
+      console.log('💡 نصيحة: تحقق من اسم المستخدم وكلمة المرور في ملف .env');
+    }
+    
+    console.log('🛑 إيقاف الخادم بسبب فشل الاتصال بقاعدة البيانات');
+    process.exit(1);
     return false;
   }
 }
 
 // دالة تنفيذ الاستعلامات
-function executeQuery(query, params = []) {
+async function executeQuery(query, params = []) {
   try {
     console.log('🔍 تنفيذ الاستعلام:', query.substring(0, 100) + (query.length > 100 ? '...' : ''));
     console.log('📊 المعاملات:', params);
     
-    // تحديد نوع الاستعلام
-    const queryType = query.trim().toUpperCase();
+    const [results] = await pool.execute(query, params);
     
-    if (queryType.startsWith('SELECT')) {
-      // استعلام SELECT
-      const stmt = db.prepare(query);
-      const results = stmt.all(params);
+    if (Array.isArray(results)) {
       console.log('✅ نتائج الاستعلام: تم جلب', results.length, 'صف');
-      return results;
-    } else if (queryType.startsWith('INSERT')) {
-      // استعلام INSERT
-      const stmt = db.prepare(query);
-      const result = stmt.run(params);
-      console.log('✅ نتائج الاستعلام: تم إدراج صف جديد، ID:', result.lastInsertRowid);
-      return { insertId: result.lastInsertRowid, affectedRows: result.changes };
-    } else if (queryType.startsWith('UPDATE') || queryType.startsWith('DELETE')) {
-      // استعلام UPDATE أو DELETE
-      const stmt = db.prepare(query);
-      const result = stmt.run(params);
-      console.log('✅ نتائج الاستعلام: تم تعديل', result.changes, 'صف');
-      return { affectedRows: result.changes };
     } else {
-      // استعلامات أخرى (CREATE, DROP, etc.)
-      const stmt = db.prepare(query);
-      const result = stmt.run(params);
-      console.log('✅ تم تنفيذ الاستعلام بنجاح');
-      return result;
+      console.log('✅ نتائج الاستعلام:', results.affectedRows || 'تم التنفيذ');
     }
+    
+    return results;
   } catch (error) {
     console.error('❌ خطأ في تنفيذ الاستعلام:', error);
     console.error('📝 الاستعلام:', query.substring(0, 200) + (query.length > 200 ? '...' : ''));
     console.error('📊 المعاملات:', params);
+    console.error('تفاصيل الخطأ:', {
+      code: error.code,
+      errno: error.errno,
+      sqlMessage: error.sqlMessage,
+      sqlState: error.sqlState
+    });
     
-    // تحسين رسائل الخطأ
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      throw new Error('البيانات مكررة - يرجى التحقق من القيم المدخلة');
-    } else if (error.code === 'SQLITE_ERROR' && error.message.includes('no such table')) {
-      throw new Error('الجدول غير موجود - يرجى التحقق من إعداد قاعدة البيانات');
-    } else if (error.code === 'SQLITE_ERROR' && error.message.includes('no such column')) {
-      throw new Error('العمود غير موجود - يرجى التحقق من هيكل قاعدة البيانات');
+    // تحسين رسائل الخطأ للكلمات المحجوزة
+    if (error.code === 'ER_PARSE_ERROR' && error.sqlMessage && error.sqlMessage.includes('timestamp')) {
+      console.error('💡 نصيحة: يبدو أن هناك مشكلة مع كلمة محجوزة "timestamp". تأكد من استخدام قاعدة البيانات المصححة.');
     }
     
     throw error;
@@ -116,71 +128,30 @@ function executeQuery(query, params = []) {
 }
 
 // دالة تنفيذ المعاملات
-function executeTransaction(queries) {
-  const transaction = db.transaction(() => {
+async function executeTransaction(queries) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    
     const results = [];
     for (const { query, params } of queries) {
-      const result = executeQuery(query, params || []);
+      const [result] = await connection.execute(query, params || []);
       results.push(result);
     }
+    
+    await connection.commit();
     return results;
-  });
-  
-  return transaction();
-}
-
-// دالة إنشاء النسخ الاحتياطية
-function createBackup() {
-  try {
-    const backupDir = path.join(__dirname, '../../backups');
-    if (!fs.existsSync(backupDir)) {
-      fs.mkdirSync(backupDir, { recursive: true });
-    }
-    
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = path.join(backupDir, `attendance_backup_${timestamp}.db`);
-    
-    // نسخ ملف قاعدة البيانات
-    fs.copyFileSync(dbPath, backupPath);
-    
-    console.log('💾 تم إنشاء نسخة احتياطية:', backupPath);
-    return backupPath;
   } catch (error) {
-    console.error('❌ خطأ في إنشاء النسخة الاحتياطية:', error);
+    await connection.rollback();
     throw error;
+  } finally {
+    connection.release();
   }
 }
-
-// دالة إغلاق قاعدة البيانات بأمان
-function closeDatabase() {
-  try {
-    if (db) {
-      db.close();
-      console.log('🔒 تم إغلاق قاعدة البيانات بأمان');
-    }
-  } catch (error) {
-    console.error('❌ خطأ في إغلاق قاعدة البيانات:', error);
-  }
-}
-
-// معالجة إغلاق التطبيق
-process.on('SIGINT', () => {
-  console.log('\n🛑 إيقاف النظام...');
-  closeDatabase();
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  console.log('\n🛑 إيقاف النظام...');
-  closeDatabase();
-  process.exit(0);
-});
 
 module.exports = {
-  db,
+  pool,
   executeQuery,
   executeTransaction,
-  testConnection,
-  createBackup,
-  closeDatabase
+  testConnection
 };

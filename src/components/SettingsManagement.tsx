@@ -3,7 +3,7 @@ import { useApp } from '../contexts/AppContext';
 import { Settings, Plus, Edit, Trash2, Search, MapPin, BookOpen, Users } from 'lucide-react';
 
 export const SettingsManagement: React.FC = () => {
-  const { locations, subjects, sessions, teachers, addLocation, updateLocation, deleteLocation, addSubject, updateSubject, deleteSubject, hasPermission } = useApp();
+  const { locations, subjects, grades, sessions, teachers, classes, addLocation, updateLocation, deleteLocation, addSubject, updateSubject, deleteSubject, addGrade, updateGrade, deleteGrade, hasPermission } = useApp();
   const [activeTab, setActiveTab] = useState('locations');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -14,7 +14,8 @@ export const SettingsManagement: React.FC = () => {
     name: '',
     roomNumber: '',
     capacity: 30,
-    description: ''
+    description: '',
+    level: 1
   });
 
   const filteredLocations = locations.filter(location =>
@@ -26,8 +27,13 @@ export const SettingsManagement: React.FC = () => {
     subject.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const filteredGrades = grades.filter(grade =>
+    grade.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   // حساب البيانات للصفحة الحالية
-  const currentData = activeTab === 'locations' ? filteredLocations : filteredSubjects;
+  const currentData = activeTab === 'locations' ? filteredLocations : 
+                     activeTab === 'subjects' ? filteredSubjects : filteredGrades;
   const totalPages = Math.ceil(currentData.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -36,6 +42,7 @@ export const SettingsManagement: React.FC = () => {
   React.useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, activeTab]);
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -46,11 +53,17 @@ export const SettingsManagement: React.FC = () => {
         } else {
           await addLocation(formData);
         }
-      } else {
+      } else if (activeTab === 'subjects') {
         if (editingItem) {
           await updateSubject(editingItem, { name: formData.name, description: formData.description });
         } else {
           await addSubject({ name: formData.name, description: formData.description });
+        }
+      } else if (activeTab === 'grades') {
+        if (editingItem) {
+          await updateGrade(editingItem, { name: formData.name, level: formData.level, description: formData.description });
+        } else {
+          await addGrade({ name: formData.name, level: formData.level, description: formData.description });
         }
       }
       
@@ -70,19 +83,36 @@ export const SettingsManagement: React.FC = () => {
         description: item.description || ''
       });
     } else {
+      if (activeTab === 'grades') {
+        setFormData({
+          name: item.name,
+          roomNumber: '',
+          capacity: 30,
+          level: item.level || 1,
+          description: item.description || ''
+        });
+      } else {
       setFormData({
         name: item.name,
         roomNumber: '',
         capacity: 30,
+        level: 1,
         description: item.description || ''
       });
+      }
     }
     setShowAddForm(true);
   };
 
   const handleDelete = async (id: string) => {
     // التحقق من الارتباطات قبل الحذف
-    if (activeTab === 'subjects') {
+    if (activeTab === 'grades') {
+      const gradeClasses = classes.filter(c => c.gradeId === id);
+      if (gradeClasses.length > 0) {
+        alert(`لا يمكن حذف الصف لأنه مرتبط بـ ${gradeClasses.length} مجموعة. يرجى إزالة الصف من المجموعات أولاً.`);
+        return;
+      }
+    } else if (activeTab === 'subjects') {
       const subjectTeachers = teachers.filter(t => t.subjectId === id);
       if (subjectTeachers.length > 0) {
         alert(`لا يمكن حذف المادة لأنها مرتبطة بـ ${subjectTeachers.length} معلم. يرجى إزالة المادة من المعلمين أولاً.`);
@@ -102,6 +132,8 @@ export const SettingsManagement: React.FC = () => {
       try {
         if (activeTab === 'locations') {
           await deleteLocation(id);
+        } else if (activeTab === 'grades') {
+          await deleteGrade(id);
         } else {
           await deleteSubject(id);
         }
@@ -112,7 +144,7 @@ export const SettingsManagement: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', roomNumber: '', capacity: 30, description: '' });
+    setFormData({ name: '', roomNumber: '', capacity: 30, description: '', level: 1 });
     setEditingItem(null);
     setShowAddForm(false);
   };
@@ -130,7 +162,8 @@ export const SettingsManagement: React.FC = () => {
           className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center"
         >
           <Plus className="h-4 w-4 ml-2" />
-          {activeTab === 'locations' ? 'إضافة مكان' : 'إضافة مادة'}
+          {activeTab === 'locations' ? 'إضافة مكان' : 
+           activeTab === 'subjects' ? 'إضافة مادة' : 'إضافة صف دراسي'}
         </button>
         )}
       </div>
@@ -141,14 +174,17 @@ export const SettingsManagement: React.FC = () => {
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-lg font-semibold mb-4">
               {editingItem 
-                ? (activeTab === 'locations' ? 'تعديل المكان' : 'تعديل المادة')
-                : (activeTab === 'locations' ? 'إضافة مكان جديد' : 'إضافة مادة جديدة')
+                ? (activeTab === 'locations' ? 'تعديل المكان' : 
+                   activeTab === 'subjects' ? 'تعديل المادة' : 'تعديل الصف الدراسي')
+                : (activeTab === 'locations' ? 'إضافة مكان جديد' : 
+                   activeTab === 'subjects' ? 'إضافة مادة جديدة' : 'إضافة صف دراسي جديد')
               }
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {activeTab === 'locations' ? 'اسم المكان' : 'اسم المادة'} *
+                  {activeTab === 'locations' ? 'اسم المكان' : 
+                   activeTab === 'subjects' ? 'اسم المادة' : 'اسم الصف الدراسي'} *
                 </label>
                 <input
                   type="text"
@@ -190,6 +226,32 @@ export const SettingsManagement: React.FC = () => {
                 </>
               )}
               
+              {activeTab === 'grades' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    المستوى
+                  </label>
+                  <select
+                    value={formData.level}
+                    onChange={(e) => setFormData({ ...formData, level: parseInt(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={1}>الصف الأول</option>
+                    <option value={2}>الصف الثاني</option>
+                    <option value={3}>الصف الثالث</option>
+                    <option value={4}>الصف الرابع</option>
+                    <option value={5}>الصف الخامس</option>
+                    <option value={6}>الصف السادس</option>
+                    <option value={7}>الصف السابع</option>
+                    <option value={8}>الصف الثامن</option>
+                    <option value={9}>الصف التاسع</option>
+                    <option value={10}>الصف العاشر</option>
+                    <option value={11}>الصف الحادي عشر</option>
+                    <option value={12}>الصف الثاني عشر</option>
+                  </select>
+                </div>
+              )}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   الوصف
@@ -208,7 +270,9 @@ export const SettingsManagement: React.FC = () => {
                   type="submit"
                   className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200"
                 >
-                  {editingItem ? 'حفظ التغييرات' : (activeTab === 'locations' ? 'إضافة المكان' : 'إضافة المادة')}
+                  {editingItem ? 'حفظ التغييرات' : 
+                   (activeTab === 'locations' ? 'إضافة المكان' : 
+                    activeTab === 'subjects' ? 'إضافة المادة' : 'إضافة الصف الدراسي')}
                 </button>
                 <button
                   type="button"
@@ -257,6 +321,21 @@ export const SettingsManagement: React.FC = () => {
               <BookOpen className="h-4 w-4 ml-2" />
               المواد الدراسية
             </button>
+            <button
+              onClick={() => {
+                setActiveTab('grades');
+                setSearchTerm('');
+                resetForm();
+              }}
+              className={`py-2 px-4 border-b-2 font-medium text-sm flex items-center ${
+                activeTab === 'grades'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Users className="h-4 w-4 ml-2" />
+              الصفوف الدراسية
+            </button>
           </nav>
         </div>
 
@@ -267,7 +346,8 @@ export const SettingsManagement: React.FC = () => {
               <Search className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder={`البحث عن ${activeTab === 'locations' ? 'مكان' : 'مادة'}...`}
+                placeholder={`البحث عن ${activeTab === 'locations' ? 'مكان' : 
+                             activeTab === 'subjects' ? 'مادة' : 'صف دراسي'}...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -277,102 +357,322 @@ export const SettingsManagement: React.FC = () => {
 
           {/* عرض البيانات */}
           {activeTab === 'locations' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(currentItems as typeof filteredLocations).map((location) => (
-                <div key={location.id} className="bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                      <MapPin className="h-5 w-5 ml-2 text-blue-600" />
-                      {location.name}
-                    </h3>
-                    <div className="flex space-x-2 space-x-reverse">
-                      {hasPermission('settingsEdit') && (
-                      <button
-                        onClick={() => handleEdit(location)}
-                        className="text-green-600 hover:text-green-900 p-1"
-                        title="تعديل"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
+            <>
+              <div className="desktop-table">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {(currentItems as typeof filteredLocations).map((location) => (
+                  <div key={location.id} className="bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                        <MapPin className="h-5 w-5 ml-2 text-blue-600" />
+                        {location.name}
+                      </h3>
+                      <div className="flex space-x-2 space-x-reverse">
+                        {hasPermission('settingsEdit') && (
+                        <button
+                          onClick={() => handleEdit(location)}
+                          className="text-green-600 hover:text-green-900 p-1"
+                          title="تعديل"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        )}
+                        {hasPermission('settingsEdit') && (
+                        <button
+                          onClick={() => handleDelete(location.id)}
+                          className="text-red-600 hover:text-red-900 p-1"
+                          title="حذف"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2 text-sm text-gray-600">
+                      {location.roomNumber && (
+                        <div>
+                          <span className="font-medium">رقم القاعة:</span> {location.roomNumber}
+                        </div>
                       )}
-                      {hasPermission('settingsEdit') && (
-                      <button
-                        onClick={() => handleDelete(location.id)}
-                        className="text-red-600 hover:text-red-900 p-1"
-                        title="حذف"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <div>
+                        <span className="font-medium">السعة:</span> {location.capacity || 30} طالب
+                      </div>
+                      {location.description && (
+                        <div>
+                          <span className="font-medium">الوصف:</span> {location.description}
+                        </div>
                       )}
+                      <div>
+                        <span className="font-medium">تاريخ الإضافة:</span> {location.createdAt ? new Date(location.createdAt).toLocaleDateString('en-GB') : 'غير محدد'}
+                      </div>
                     </div>
                   </div>
-                  
-                  <div className="space-y-2 text-sm text-gray-600">
-                    {location.roomNumber && (
-                      <div>
-                        <span className="font-medium">رقم القاعة:</span> {location.roomNumber}
-                      </div>
-                    )}
-                    <div>
-                      <span className="font-medium">السعة:</span> {location.capacity || 30} طالب
-                    </div>
-                    {location.description && (
-                      <div>
-                        <span className="font-medium">الوصف:</span> {location.description}
-                      </div>
-                    )}
-                    <div>
-                      <span className="font-medium">تاريخ الإضافة:</span> {location.createdAt ? new Date(location.createdAt).toLocaleDateString('en-GB') : 'غير محدد'}
-                    </div>
-                  </div>
+                ))}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(currentItems as typeof filteredSubjects).map((subject) => (
-                <div key={subject.id} className="bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                      <BookOpen className="h-5 w-5 ml-2 text-green-600" />
-                      {subject.name}
-                    </h3>
-                    <div className="flex space-x-2 space-x-reverse">
-                      {hasPermission('settingsEdit') && (
-                      <button
-                        onClick={() => handleEdit(subject)}
-                        className="text-green-600 hover:text-green-900 p-1"
-                        title="تعديل"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      )}
-                      {hasPermission('settingsEdit') && (
-                      <button
-                        onClick={() => handleDelete(subject.id)}
-                        className="text-red-600 hover:text-red-900 p-1"
-                        title="حذف"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2 text-sm text-gray-600">
-                    {subject.description && (
-                      <div>
-                        <span className="font-medium">الوصف:</span> {subject.description}
+              </div>
+              
+              {/* عرض بطاقات للموبايل - الأماكن */}
+              <div className="mobile-cards">
+                {(currentItems as typeof filteredLocations).map((location) => (
+                  <div key={location.id} className="mobile-card">
+                    <div className="mobile-card-header">
+                      <div className="mobile-card-title flex items-center">
+                        <MapPin className="h-5 w-5 ml-2 text-blue-600" />
+                        {location.name}
                       </div>
-                    )}
-                    <div>
-                      <span className="font-medium">تاريخ الإضافة:</span> {subject.createdAt ? new Date(subject.createdAt).toLocaleDateString('en-GB') : 'غير محدد'}
+                      <div className="mobile-btn-group">
+                        {hasPermission('settingsEdit') && (
+                        <button
+                          onClick={() => handleEdit(location)}
+                          className="mobile-btn text-green-600 hover:text-green-900"
+                          title="تعديل"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        )}
+                        {hasPermission('settingsEdit') && (
+                        <button
+                          onClick={() => handleDelete(location.id)}
+                          className="mobile-btn text-red-600 hover:text-red-900"
+                          title="حذف"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="mobile-card-content">
+                      {location.roomNumber && (
+                        <div className="mobile-card-field">
+                          <div className="mobile-card-label">رقم القاعة</div>
+                          <div className="mobile-card-value">{location.roomNumber}</div>
+                        </div>
+                      )}
+                      <div className="mobile-card-field">
+                        <div className="mobile-card-label">السعة</div>
+                        <div className="mobile-card-value">{location.capacity || 30} طالب</div>
+                      </div>
+                      {location.description && (
+                        <div className="mobile-card-field">
+                          <div className="mobile-card-label">الوصف</div>
+                          <div className="mobile-card-value">{location.description}</div>
+                        </div>
+                      )}
+                      <div className="mobile-card-field">
+                        <div className="mobile-card-label">تاريخ الإضافة</div>
+                        <div className="mobile-card-value">
+                          {location.createdAt ? new Date(location.createdAt).toLocaleDateString('en-GB') : 'غير محدد'}
+                        </div>
+                      </div>
                     </div>
                   </div>
+                ))}
+              </div>
+            </>
+          ) : activeTab === 'subjects' ? (
+            <>
+              <div className="desktop-table">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {(currentItems as typeof filteredSubjects).map((subject) => (
+                  <div key={subject.id} className="bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                        <BookOpen className="h-5 w-5 ml-2 text-green-600" />
+                        {subject.name}
+                      </h3>
+                      <div className="flex space-x-2 space-x-reverse">
+                        {hasPermission('settingsEdit') && (
+                        <button
+                          onClick={() => handleEdit(subject)}
+                          className="text-green-600 hover:text-green-900 p-1"
+                          title="تعديل"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        )}
+                        {hasPermission('settingsEdit') && (
+                        <button
+                          onClick={() => handleDelete(subject.id)}
+                          className="text-red-600 hover:text-red-900 p-1"
+                          title="حذف"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2 text-sm text-gray-600">
+                      {subject.description && (
+                        <div>
+                          <span className="font-medium">الوصف:</span> {subject.description}
+                        </div>
+                      )}
+                      <div>
+                        <span className="font-medium">تاريخ الإضافة:</span> {subject.createdAt ? new Date(subject.createdAt).toLocaleDateString('en-GB') : 'غير محدد'}
+                      </div>
+                    </div>
+                  </div>
+                ))}
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+              
+              {/* عرض بطاقات للموبايل - المواد */}
+              <div className="mobile-cards">
+                {(currentItems as typeof filteredSubjects).map((subject) => (
+                  <div key={subject.id} className="mobile-card">
+                    <div className="mobile-card-header">
+                      <div className="mobile-card-title flex items-center">
+                        <BookOpen className="h-5 w-5 ml-2 text-green-600" />
+                        {subject.name}
+                      </div>
+                      <div className="mobile-btn-group">
+                        {hasPermission('settingsEdit') && (
+                        <button
+                          onClick={() => handleEdit(subject)}
+                          className="mobile-btn text-green-600 hover:text-green-900"
+                          title="تعديل"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        )}
+                        {hasPermission('settingsEdit') && (
+                        <button
+                          onClick={() => handleDelete(subject.id)}
+                          className="mobile-btn text-red-600 hover:text-red-900"
+                          title="حذف"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="mobile-card-content">
+                      {subject.description && (
+                        <div className="mobile-card-field">
+                          <div className="mobile-card-label">الوصف</div>
+                          <div className="mobile-card-value">{subject.description}</div>
+                        </div>
+                      )}
+                      <div className="mobile-card-field">
+                        <div className="mobile-card-label">تاريخ الإضافة</div>
+                        <div className="mobile-card-value">
+                          {subject.createdAt ? new Date(subject.createdAt).toLocaleDateString('en-GB') : 'غير محدد'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : activeTab === 'grades' ? (
+            <>
+              <div className="desktop-table">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {(currentItems as typeof filteredGrades).map((grade) => (
+                  <div key={grade.id} className="bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                        <Users className="h-5 w-5 ml-2 text-purple-600" />
+                        {grade.name}
+                      </h3>
+                      <div className="flex space-x-2 space-x-reverse">
+                        {hasPermission('settingsEdit') && (
+                        <button
+                          onClick={() => handleEdit(grade)}
+                          className="text-green-600 hover:text-green-900 p-1"
+                          title="تعديل"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        )}
+                        {hasPermission('settingsEdit') && (
+                        <button
+                          onClick={() => handleDelete(grade.id)}
+                          className="text-red-600 hover:text-red-900 p-1"
+                          title="حذف"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2 text-sm text-gray-600">
+                      <div>
+                        <span className="font-medium">المستوى:</span> {grade.level}
+                      </div>
+                      {grade.description && (
+                        <div>
+                          <span className="font-medium">الوصف:</span> {grade.description}
+                        </div>
+                      )}
+                      <div>
+                        <span className="font-medium">تاريخ الإضافة:</span> {grade.createdAt ? new Date(grade.createdAt).toLocaleDateString('en-GB') : 'غير محدد'}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                </div>
+              </div>
+              
+              {/* عرض بطاقات للموبايل - الصفوف */}
+              <div className="mobile-cards">
+                {(currentItems as typeof filteredGrades).map((grade) => (
+                  <div key={grade.id} className="mobile-card">
+                    <div className="mobile-card-header">
+                      <div className="mobile-card-title flex items-center">
+                        <Users className="h-5 w-5 ml-2 text-purple-600" />
+                        {grade.name}
+                      </div>
+                      <div className="mobile-btn-group">
+                        {hasPermission('settingsEdit') && (
+                        <button
+                          onClick={() => handleEdit(grade)}
+                          className="mobile-btn text-green-600 hover:text-green-900"
+                          title="تعديل"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        )}
+                        {hasPermission('settingsEdit') && (
+                        <button
+                          onClick={() => handleDelete(grade.id)}
+                          className="mobile-btn text-red-600 hover:text-red-900"
+                          title="حذف"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="mobile-card-content">
+                      <div className="mobile-card-field">
+                        <div className="mobile-card-label">المستوى</div>
+                        <div className="mobile-card-value">{grade.level}</div>
+                      </div>
+                      {grade.description && (
+                        <div className="mobile-card-field">
+                          <div className="mobile-card-label">الوصف</div>
+                          <div className="mobile-card-value">{grade.description}</div>
+                        </div>
+                      )}
+                      <div className="mobile-card-field">
+                        <div className="mobile-card-label">تاريخ الإضافة</div>
+                        <div className="mobile-card-value">
+                          {grade.createdAt ? new Date(grade.createdAt).toLocaleDateString('en-GB') : 'غير محدد'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
 
           {/* Pagination */}
           {totalPages > 1 && (
@@ -410,17 +710,21 @@ export const SettingsManagement: React.FC = () => {
               </button>
             </div>
           )}
+          
           {/* رسالة عدم وجود بيانات */}
           {currentItems.length === 0 && (
             <div className="text-center py-12">
               {activeTab === 'locations' ? (
                 <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              ) : activeTab === 'grades' ? (
+                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               ) : (
                 <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               )}
               <p className="text-gray-500">
                 {currentData.length === 0 
-                  ? `لا توجد ${activeTab === 'locations' ? 'أماكن' : 'مواد'} مطابقة للبحث`
+                  ? `لا توجد ${activeTab === 'locations' ? 'أماكن' : 
+                                activeTab === 'subjects' ? 'مواد' : 'صفوف دراسية'} مطابقة للبحث`
                   : 'لا توجد بيانات في هذه الصفحة'
                 }
               </p>
@@ -431,3 +735,6 @@ export const SettingsManagement: React.FC = () => {
     </div>
   );
 };
+
+
+

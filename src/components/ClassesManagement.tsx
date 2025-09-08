@@ -3,7 +3,7 @@ import { useApp } from '../contexts/AppContext';
 import { BookOpen, Plus, Edit, Trash2, Search, Eye, Users, X, ArrowRight, Printer } from 'lucide-react';
 
 export const ClassesManagement: React.FC = () => {
-  const { classes, students, teachers, subjects, sessions, addClass, updateClass, deleteClass, removeStudentFromClass, transferStudentToClass, hasPermission } = useApp();
+  const { classes, students, teachers, subjects, sessions, grades, locations, addClass, updateClass, deleteClass, removeStudentFromClass, transferStudentToClass, hasPermission } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(9);
@@ -15,18 +15,33 @@ export const ClassesManagement: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     teacherId: '',
+    gradeId: '',
+    locationId: '',
     maxCapacity: 30
   });
 
-  const filteredClasses = classes.filter(cls =>
+// فلترة وترتيب الكلاسات بالأرقام
+const sortedClasses = classes
+  .filter(cls =>
     cls.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  )
+  .sort((a, b) => {
+    const numA = parseInt(a.name);
+    const numB = parseInt(b.name);
+    return (isNaN(numA) ? 0 : numA) - (isNaN(numB) ? 0 : numB);
+  });
 
-  // حساب البيانات للصفحة الحالية
-  const totalPages = Math.ceil(filteredClasses.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentClasses = filteredClasses.slice(startIndex, endIndex);
+// حساب البيانات للصفحة الحالية
+const totalPages = Math.ceil(sortedClasses.length / itemsPerPage);
+const startIndex = (currentPage - 1) * itemsPerPage;
+const endIndex = startIndex + itemsPerPage;
+const currentClasses = sortedClasses.slice(startIndex, endIndex);
+
+  // فلترة الكلاسات حسب البحث
+const filteredClasses = classes.filter(cls =>
+  cls.name.toLowerCase().includes(searchTerm.toLowerCase())
+);
+
 
   // إعادة تعيين الصفحة عند تغيير البحث
   React.useEffect(() => {
@@ -49,6 +64,8 @@ export const ClassesManagement: React.FC = () => {
     setFormData({
       name: cls.name,
       teacherId: cls.teacherId,
+      gradeId: cls.gradeId || '',
+      locationId: cls.locationId || '',
       maxCapacity: cls.maxCapacity
     });
     setShowAddForm(true);
@@ -59,30 +76,30 @@ export const ClassesManagement: React.FC = () => {
     const classSessions = sessions.filter(s => s.classId === id);
     
     if (classStudents.length > 0) {
-      alert(`لا يمكن حذف الفصل لأنه يحتوي على ${classStudents.length} طالب`);
+      alert(`لا يمكن حذف المجموعة لأنه يحتوي على ${classStudents.length} طالب`);
       return;
     }
     
     if (classSessions.length > 0) {
-      if (!window.confirm(`هذا الفصل لديه ${classSessions.length} جلسة. هل أنت متأكد من الحذف؟ سيتم حذف جميع الجلسات أيضاً.`)) {
+      if (!window.confirm(`هذا المجموعة لديه ${classSessions.length} جلسة. هل أنت متأكد من الحذف؟ سيتم حذف جميع الحصص أيضاً.`)) {
         return;
       }
     }
     
-    if (window.confirm('هل أنت متأكد من حذف هذا الفصل؟')) {
+    if (window.confirm('هل أنت متأكد من حذف هذا المجموعة؟')) {
       deleteClass(id);
     }
   };
 
   const handleRemoveStudentFromClass = (studentId: string) => {
-    if (window.confirm('هل أنت متأكد من إزالة هذا الطالب من الفصل؟')) {
+    if (window.confirm('هل أنت متأكد من إزالة هذا الطالب من المجموعة؟')) {
       removeStudentFromClass(studentId);
     }
   };
 
   const handleRemoveAllStudentsFromClass = (classId: string) => {
     const classStudents = students.filter(s => s.classId === classId);
-    if (window.confirm(`هل أنت متأكد من إزالة جميع الطلاب (${classStudents.length}) من هذا الفصل؟`)) {
+    if (window.confirm(`هل أنت متأكد من إزالة جميع الطلاب (${classStudents.length}) من هذا المجموعة؟`)) {
       classStudents.forEach(student => {
         removeStudentFromClass(student.id);
       });
@@ -104,72 +121,227 @@ export const ClassesManagement: React.FC = () => {
     setSelectedTargetClass('');
   };
 
-  const generateClassBarcodes = (classId: string) => {
+  // ==================================================================
+  // START: الوظيفة المحدثة لطباعة بطاقات هوية الطلاب
+  // ==================================================================
+const generateClassBarcodes = (classId: string) => {
+    const classData = classes.find(c => c.id === classId);
     const classStudents = students.filter(s => s.classId === classId);
-    const className = classes.find(c => c.id === classId)?.name;
     
-    if (classStudents.length === 0) {
-      alert('لا يوجد طلاب في هذا الفصل');
+    if (!classData || classStudents.length === 0) {
+      alert('لا يوجد طلاب في هذا المجموعة لطباعة البطاقات');
       return;
     }
 
-    // إنشاء محتوى HTML للطباعة
+    const teacher = teachers.find(t => t.id === classData.teacherId);
+    const teacherName = teacher ? teacher.name : 'غير محدد';
+    const grade = grades.find(g => g.id === classData.gradeId);
+    const gradeName = grade ? grade.name : 'غير محدد';
+    const location = locations.find(l => l.id === classData.locationId);
+    const locationName = location ? location.name : 'غير محدد';
+    
+    const studentImagePath = 'https://i.postimg.cc/K82zGYv5/Whats-App-Image-2025-07-24-at-11-57-51-4be0bb8b.jpg';
+
     const printContent = `
       <!DOCTYPE html>
       <html dir="rtl">
       <head>
-        <title>باركودات ${className}</title>
+        <title>بطاقات هوية مجموعة ${classData.name}</title>
         <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
         <style>
-          body { font-family: Arial, sans-serif; direction: rtl; }
-          .barcode-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 20px; }
-          .barcode-item { border: 2px solid #000; padding: 15px; text-align: center; page-break-inside: avoid; }
-          .student-name { font-size: 14px; font-weight: bold; margin-bottom: 10px; }
-          .barcode-svg { margin: 10px 0; }
-          .class-name { font-size: 12px; color: #666; }
-          @media print { .no-print { display: none; } }
+          @media print {
+            @page {
+              size: A4;
+              margin: 1cm;
+            }
+            body {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .no-print { display: none; }
+          }
+
+          body {
+            font-family: 'Cairo', sans-serif;
+            margin: 0;
+            background-color: #f0f2f5;
+          }
+
+          .card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10mm;
+            padding: 5mm;
+            page-break-inside: avoid;
+          }
+
+          .student-id-card {
+            width: 85.6mm;
+            height: 53.98mm;
+            background-color: #ffffff;
+            border-radius: 3.5mm;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            page-break-inside: avoid;
+            direction: rtl;
+          }
+
+          .card-header {
+            background-color: #004A55;
+            min-height: 7mm;
+            padding:5px;
+            position: relative;
+            color: #fff;
+          }
+          .card-header::after {
+            content: '';
+            position: absolute;
+            bottom: -5mm;
+            left: -5mm;
+            width: 25mm;
+            height: 25mm;
+            background-color: #14C3A4;
+            border-radius: 50%;
+          }
+
+          .card-body {
+            display: flex;
+            align-items: center;
+            padding: 3mm 4mm;
+            flex-grow: 1;
+          }
+
+          .student-photo {
+            width: 22mm;
+            height: 28mm;
+            border-radius: 3mm;
+            border: 2px solid #004A55;
+            object-fit: cover;
+            margin-left: 4mm;
+          }
+
+          .photo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+          }
+
+          .teacher-name {
+            font-size: 2.8mm;
+            font-weight: 600;
+            color: #FFF;
+            margin: 1mm;
+            padding: 0 10px 0 0;
+            text-align: right;
+          }
+
+          .student-info {
+            font-size: 2.8mm;
+            color: #333;
+          }
+          .student-info .label {
+            font-weight: 400;
+            color: #555;
+            display: inline-block;
+            width: 15mm;
+          }
+          .student-info .value {
+            font-weight: 600;
+            color: #004A55;
+          }
+          .student-name {
+            font-size: 3.5mm;
+            font-weight: 700;
+            color: #004A55;
+            margin-bottom: 1.5mm;
+          }
+
+          .barcode-container {
+            text-align: center;
+            margin-top: 2.5mm;
+          }
+          .barcode-svg {
+            width: 100%;
+            height: 8mm;
+          }
         </style>
       </head>
       <body>
-        <h1 style="text-align: center; margin-bottom: 30px;">باركودات فصل ${className}</h1>
-        <div class="barcode-container">
+        <div class="card-grid">
           ${classStudents.map(student => `
-            <div class="barcode-item">
-              <div class="student-name">${student.name}</div>
-              <svg class="barcode-svg" id="barcode-${student.id}"></svg>
-              <div class="class-name">${className}</div>
+            <div class="student-id-card">
+              <div class="card-header">
+              </div>
+              <div class="card-body">
+                <div class="photo-container">
+                  <img src="${studentImagePath}" alt="صورة الطالب" class="student-photo">
+                </div>
+                <div class="student-info">
+                  <div class="student-name">${student.name}</div>
+                  <div>
+                    <span class="label">ولي الأمر:</span>
+                    <span class="value">${student.parentPhone || 'غير مسجل'}</span>
+                  </div>
+                  <div>
+                    <span class="label">الصف:</span>
+                    <span class="value">${gradeName}</span>
+                  </div>
+                  <div>
+                    <span class="label">المكان:</span>
+                    <span class="value">${locationName}</span>
+                  </div>
+                  <div class="barcode-container">
+                    <svg class="barcode-svg" id="barcode-${student.id}"></svg>
+                  </div>
+                </div>
+              </div>
             </div>
           `).join('')}
         </div>
         <script>
           window.onload = function() {
             ${classStudents.map(student => `
-              JsBarcode("#barcode-${student.id}", "${student.barcode}", {
-                format: "CODE128",
-                width: 2,
-                height: 50,
-                displayValue: true
-              });
+              try {
+                JsBarcode("#barcode-${student.id}", "${student.barcode}", {
+                  format: "CODE128",
+                  width: 1.5,
+                  height: 40,
+                  displayValue: false,
+                  margin: 0
+                });
+              } catch (e) {
+                console.error('خطأ في إنشاء الباركود للطالب ${student.name}:', e);
+              }
             `).join('')}
-            setTimeout(() => window.print(), 1000);
+            
+            setTimeout(() => {
+              window.print();
+              window.close();
+            }, 500);
           };
         </script>
       </body>
       </html>
     `;
 
-    // فتح نافذة جديدة للطباعة
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(printContent);
       printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
+    } else {
+      alert('يرجى السماح بالنوافذ المنبثقة لطباعة البطاقات.');
     }
   };
+  // ==================================================================
+  // END: الوظيفة المحدثة
+  // ==================================================================
 
   const resetForm = () => {
-    setFormData({ name: '', teacherId: '', maxCapacity: 30 });
+    setFormData({ name: '', teacherId: '', gradeId: '', locationId: '', maxCapacity: 30 });
     setEditingClass(null);
     setShowAddForm(false);
   };
@@ -188,7 +360,7 @@ export const ClassesManagement: React.FC = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center">
           <BookOpen className="h-6 w-6 ml-2" />
-          إدارة الفصول
+          إدارة المجموعات
         </h1>
         {hasPermission('classesEdit') && (
         <button
@@ -196,7 +368,7 @@ export const ClassesManagement: React.FC = () => {
           className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center"
         >
           <Plus className="h-4 w-4 ml-2" />
-          إضافة فصل
+          إضافة مجموعة
         </button>
         )}
       </div>
@@ -206,20 +378,54 @@ export const ClassesManagement: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-lg font-semibold mb-4">
-              {editingClass ? 'تعديل الفصل' : 'إضافة فصل جديد'}
+              {editingClass ? 'تعديل المجموعة' : 'إضافة مجموعة جديد'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  اسم الفصل
+                  اسم المجموعة
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="مثال: مجموعة أ"
                   required
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  الصف الدراسي
+                </label>
+                <select
+                  value={formData.gradeId}
+                  onChange={(e) => setFormData({ ...formData, gradeId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="">اختر الصف الدراسي</option>
+                  {grades.map(grade => (
+                    <option key={grade.id} value={grade.id}>{grade.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  المكان
+                </label>
+                <select
+                  value={formData.locationId}
+                  onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">اختر المكان</option>
+                  {locations.map(location => (
+                    <option key={location.id} value={location.id}>
+                      {location.name} {location.roomNumber && `- ${location.roomNumber}`}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -256,7 +462,7 @@ export const ClassesManagement: React.FC = () => {
                   type="submit"
                   className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200"
                 >
-                  {editingClass ? 'حفظ التغييرات' : 'إضافة الفصل'}
+                  {editingClass ? 'حفظ التغييرات' : 'إضافة المجموعة'}
                 </button>
                 <button
                   type="button"
@@ -271,7 +477,7 @@ export const ClassesManagement: React.FC = () => {
         </div>
       )}
 
-      {/* نافذة تفاصيل الفصل */}
+      {/* نافذة تفاصيل المجموعة */}
       {showClassDetails && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -283,7 +489,7 @@ export const ClassesManagement: React.FC = () => {
               return (
                 <div>
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold">تفاصيل فصل {classData?.name}</h2>
+                    <h2 className="text-xl font-semibold">تفاصيل مجموعة {classData?.name}</h2>
                     <button
                       onClick={() => setShowClassDetails(null)}
                       className="text-gray-500 hover:text-gray-700"
@@ -313,14 +519,14 @@ export const ClassesManagement: React.FC = () => {
                     <h3 className="text-lg font-medium">قائمة الطلاب ({classStudents.length})</h3>
                     <div className="flex space-x-2 space-x-reverse">
                       <button
-                        onClick={() => generateClassBarcodes(showClassDetails)}
+                        onClick={() => generateClassBarcodes(showClassDetails!)}
                         className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
                       >
-                        طباعة الباركودات
+                        طباعة البطاقات
                       </button>
                       {classStudents.length > 0 && (
                         <button
-                          onClick={() => handleRemoveAllStudentsFromClass(showClassDetails)}
+                          onClick={() => handleRemoveAllStudentsFromClass(showClassDetails!)}
                           className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
                         >
                           إزالة جميع الطلاب
@@ -370,7 +576,7 @@ export const ClassesManagement: React.FC = () => {
                   ) : (
                     <div className="text-center py-8 text-gray-500">
                       <Users className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                      <p>لا يوجد طلاب في هذا الفصل</p>
+                      <p>لا يوجد طلاب في هذا المجموعة</p>
                     </div>
                   )}
                 </div>
@@ -388,14 +594,14 @@ export const ClassesManagement: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  اختر الفصل الجديد
+                  اختر المجموعة الجديد
                 </label>
                 <select
                   value={selectedTargetClass}
                   onChange={(e) => setSelectedTargetClass(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">بدون فصل</option>
+                  <option value="">بدون مجموعة</option>
                   {classes.filter(c => c.id !== showClassDetails).map(cls => (
                     <option key={cls.id} value={cls.id}>{cls.name}</option>
                   ))}
@@ -429,7 +635,7 @@ export const ClassesManagement: React.FC = () => {
           <Search className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
           <input
             type="text"
-            placeholder="البحث عن فصل..."
+            placeholder="البحث عن مجموعة..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -437,16 +643,22 @@ export const ClassesManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* قائمة الفصول */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* قائمة المجموعات */}
+      <div className="desktop-table">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {currentClasses.map((cls) => {
           const classStudents = students.filter(s => s.classId === cls.id);
           const teacherDisplayName = cls.teacherId ? getTeacherDisplayName(cls.teacherId) : 'غير محدد';
+          const gradeName = grades.find(g => g.id === cls.gradeId)?.name || '';
+          const locationName = locations.find(l => l.id === cls.locationId)?.name || '';
+          
+          // تكوين اسم المجموعة الكامل
+          const fullClassName = `${cls.name}${gradeName ? ` - ${gradeName}` : ''}${locationName ? ` - ${locationName}` : ''}`;
           
           return (
             <div key={cls.id} className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow duration-200">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">{cls.name}</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{fullClassName}</h3>
                 <div className="flex items-center space-x-2 space-x-reverse">
                   <button
                     onClick={() => setShowClassDetails(cls.id)}
@@ -481,6 +693,16 @@ export const ClassesManagement: React.FC = () => {
                   <Users className="h-4 w-4 ml-2" />
                   <span>عدد الطلاب: {classStudents.length}/{cls.maxCapacity}</span>
                 </div>
+                {gradeName && (
+                  <div>
+                    <span>الصف الدراسي: {gradeName}</span>
+                  </div>
+                )}
+                {locationName && (
+                  <div>
+                    <span>المكان: {locationName}</span>
+                  </div>
+                )}
                 <div>
                   <span>المعلم: {cls.teacherName || 'غير محدد'}</span>
                 </div>
@@ -508,14 +730,117 @@ export const ClassesManagement: React.FC = () => {
                   disabled={classStudents.length === 0}
                 >
                   <Printer className="h-3 w-3 inline ml-1" />
-                  طباعة الباركودات
+                  طباعة البطاقات
                 </button>
               </div>
             </div>
           );
         })}
+        </div>
       </div>
 
+      {/* عرض بطاقات للموبايل */}
+      <div className="mobile-cards">
+        {currentClasses.map((cls) => {
+          const classStudents = students.filter(s => s.classId === cls.id);
+          const teacherDisplayName = cls.teacherId ? getTeacherDisplayName(cls.teacherId) : 'غير محدد';
+          const gradeName = grades.find(g => g.id === cls.gradeId)?.name || '';
+          const locationName = locations.find(l => l.id === cls.locationId)?.name || '';
+          
+          // تكوين اسم المجموعة الكامل
+          const fullClassName = `${cls.name}${gradeName ? ` - ${gradeName}` : ''}${locationName ? ` - ${locationName}` : ''}`;
+          
+          return (
+            <div key={cls.id} className="mobile-card">
+              <div className="mobile-card-header">
+                <div className="mobile-card-title">{fullClassName}</div>
+                <div className="mobile-btn-group">
+                  <button
+                    onClick={() => setShowClassDetails(cls.id)}
+                    className="mobile-btn text-blue-600 hover:text-blue-900"
+                    title="عرض التفاصيل"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                  {hasPermission('classesEdit') && (
+                  <button
+                    onClick={() => handleEdit(cls)}
+                    className="mobile-btn text-green-600 hover:text-green-900"
+                    title="تعديل"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </button>
+                  )}
+                  {hasPermission('classesDelete') && (
+                  <button
+                    onClick={() => handleDelete(cls.id)}
+                    className="mobile-btn text-red-600 hover:text-red-900"
+                    title="حذف"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  )}
+                </div>
+              </div>
+              
+              <div className="mobile-card-content">
+                <div className="mobile-card-field">
+                  <div className="mobile-card-label">عدد الطلاب</div>
+                  <div className="mobile-card-value">{classStudents.length}/{cls.maxCapacity}</div>
+                </div>
+                <div className="mobile-card-field">
+                  <div className="mobile-card-label">المعلم</div>
+                  <div className="mobile-card-value">{cls.teacherName || 'غير محدد'}</div>
+                </div>
+                {gradeName && (
+                  <div className="mobile-card-field">
+                    <div className="mobile-card-label">الصف الدراسي</div>
+                    <div className="mobile-card-value">{gradeName}</div>
+                  </div>
+                )}
+                {locationName && (
+                  <div className="mobile-card-field">
+                    <div className="mobile-card-label">المكان</div>
+                    <div className="mobile-card-value">{locationName}</div>
+                  </div>
+                )}
+                <div className="mobile-card-field">
+                  <div className="mobile-card-label">نسبة الامتلاء</div>
+                  <div className="mobile-card-value">
+                    {cls.maxCapacity > 0 ? ((classStudents.length / cls.maxCapacity) * 100).toFixed(1) : 0}%
+                  </div>
+                </div>
+                <div className="mobile-card-field">
+                  <div className="mobile-card-label">تاريخ الإنشاء</div>
+                  <div className="mobile-card-value">
+                    {cls.createdAt ? new Date(cls.createdAt).toLocaleDateString('en-GB') : 'غير محدد'}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mobile-card-actions">
+                <button
+                  onClick={() => generateClassBarcodes(cls.id)}
+                  className="mobile-btn bg-green-100 text-green-800 hover:bg-green-200"
+                  disabled={classStudents.length === 0}
+                >
+                  <Printer className="h-3 w-3 inline ml-1" />
+                  طباعة البطاقات
+                </button>
+              </div>
+              
+              <div className="mt-2">
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${cls.maxCapacity > 0 ? (classStudents.length / cls.maxCapacity) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center space-x-4 space-x-reverse mt-6">
@@ -553,12 +878,31 @@ export const ClassesManagement: React.FC = () => {
         </div>
       )}
 
-      {currentClasses.length === 0 && (
+      {currentClasses.length === 0 && searchTerm.length > 0 && (
+        <div className="text-center py-12">
+          <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-500">
+            لا توجد فصول مطابقة للبحث.
+          </p>
+        </div>
+      )}
+
+      {filteredClasses.length === 0 && searchTerm.length === 0 && (
         <div className="text-center py-12">
           <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">
-            {filteredClasses.length === 0 ? 'لا توجد فصول مطابقة للبحث' : 'لا توجد بيانات في هذه الصفحة'}
+          <h3 className="text-lg font-medium text-gray-800">لم يتم إضافة فصول بعد</h3>
+          <p className="text-gray-500 mt-2">
+            ابدأ بإضافة مجموعة جديد لعرضه هنا.
           </p>
+          {hasPermission('classesEdit') && (
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center mx-auto"
+          >
+            <Plus className="h-4 w-4 ml-2" />
+            إضافة مجموعة جديد
+          </button>
+          )}
         </div>
       )}
     </div>

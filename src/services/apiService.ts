@@ -136,7 +136,7 @@ class ApiService {
     });
   }
 
-  // الفصول
+  // المجموعات
   async getClasses() {
     return this.request('/classes');
   }
@@ -236,9 +236,34 @@ class ApiService {
     });
   }
 
-  // الجلسات
+  // الصفوف الدراسية
+  async getGrades() {
+    return this.request('/grades');
+  }
+
+  async createGrade(gradeData: any) {
+    return this.request('/grades', {
+      method: 'POST',
+      body: gradeData,
+    });
+  }
+
+  async updateGrade(id: string, gradeData: any) {
+    return this.request(`/grades/${id}`, {
+      method: 'PUT',
+      body: gradeData,
+    });
+  }
+
+  async deleteGrade(id: string) {
+    return this.request(`/grades/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // الحصص
   async getSessions() {
-    console.log('📅 طلب جلب الجلسات من الخادم...');
+    console.log('📅 طلب جلب الحصص من الخادم...');
     return this.request('/sessions');
   }
 
@@ -251,7 +276,7 @@ class ApiService {
   }
 
   async updateSession(id: string, sessionData: any) {
-    console.log('✏️ طلب تحديث الجلسة:', id, sessionData);
+    console.log('✏️ طلب تحديث الحصة:', id, sessionData);
     return this.request(`/sessions/${id}`, {
       method: 'PUT',
       body: sessionData,
@@ -259,22 +284,22 @@ class ApiService {
   }
 
   async deleteSession(id: string) {
-    console.log('🗑️ طلب حذف الجلسة:', id);
+    console.log('🗑️ طلب حذف الحصة:', id);
     return this.request(`/sessions/${id}`, {
       method: 'DELETE',
     });
   }
 
   async toggleSessionStatus(id: string) {
-    console.log('🔄 طلب تغيير حالة الجلسة:', id);
+    console.log('🔄 طلب تغيير حالة الحصة:', id);
     return this.request(`/sessions/${id}/toggle-status`, {
       method: 'PUT',
     });
   }
 
-  // جلب طلاب الجلسة
+  // جلب طلاب الحصة
   async getSessionStudents(sessionId: string) {
-    console.log('👥 طلب جلب طلاب الجلسة:', sessionId);
+    console.log('👥 طلب جلب طلاب الحصة:', sessionId);
     return this.request(`/sessions/${sessionId}/students`);
   }
 
@@ -309,6 +334,7 @@ class ApiService {
   }
 
   async createReport(reportData: any) {
+    console.log('📝 إنشاء تقرير جديد:', reportData);
     return this.request('/reports', {
       method: 'POST',
       body: reportData,
@@ -316,6 +342,7 @@ class ApiService {
   }
 
   async updateReport(id: string, reportData: any) {
+    console.log('✏️ تحديث التقرير:', id, reportData);
     return this.request(`/reports/${id}`, {
       method: 'PUT',
       body: reportData,
@@ -360,7 +387,7 @@ class ApiService {
   }
 
   async sendSessionReport(sessionId: string) {
-    console.log('📤 طلب إرسال تقرير الجلسة من API:', sessionId);
+    console.log('📤 طلب إرسال تقرير الحصة من API:', sessionId);
     const result = await this.request('/whatsapp/send-session-report', {
       method: 'POST',
       body: { sessionId },

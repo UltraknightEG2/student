@@ -88,7 +88,7 @@ class ApiService {
     });
   }
 
-  // الجلسات
+  // الحصص
   async getSessions() {
     return this.request('/sessions');
   }
@@ -160,6 +160,7 @@ class ApiService {
   async getClasses() {
     return this.request('/classes');
   }
+
 }
 
 export const apiService = new ApiService();

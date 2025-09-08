@@ -7,7 +7,8 @@ console.log('🧪 بدء اختبار الواتساب...');
 
 // إعداد خيارات Venom
 const venomOptions = {
-  session: process.env.WHATSAPP_SESSION_NAME || 'test-session',
+  session: process.env.WHATSAPP_SESSION_NAME || 'attendance-system-proxy',
+  folderNameToken: './tokens', // مهم لتخزين بيانات الجلسة
   headless: true,
   multidevice: true,
   disableWelcome: true,
@@ -22,7 +23,16 @@ venom
 
 async function start(client) {
   try {
-    // إزالة أي مسافات إضافية وضمان التنسيق الصحيح
+    console.log('⏳ جاري التحقق من حالة الاتصال...');
+    const state = await client.getConnectionState();
+    console.log('📡 حالة الاتصال الحالية:', state);
+
+    if (!['CONNECTED', 'SYNCING', 'PAIRING', 'OPENING'].includes(state)) {
+      console.error('❌ الجلسة غير متصلة حالياً، أعد المحاولة بعد التأكد من الربط.');
+      process.exit(1);
+    }
+
+    // تنسيق الرقم
     const cleanNumber = phoneNumber.replace(/\s+/g, '');
     const formattedNumber = `${cleanNumber}@c.us`;
 

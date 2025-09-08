@@ -1,30 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { Users, Plus, Edit, Trash2, Search, Eye } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Search, Eye, X } from 'lucide-react';
 
 export const StudentsManagement: React.FC = () => {
-  const { students, classes, attendance, addStudent, updateStudent, deleteStudent, generateStudentBarcode, hasPermission } = useApp();
+  const { students, classes, grades, attendance, addStudent, updateStudent, deleteStudent, generateStudentBarcode, hasPermission } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(25);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingStudent, setEditingStudent] = useState<string | null>(null);
+  const [generatedBarcode, setGeneratedBarcode] = useState<string>('');
+  const [isLoadingBarcode, setIsLoadingBarcode] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     barcode: '',
     parentPhone: '',
+    parentEmail: '',
     classId: '' as string | null
   });
 
-  const filteredStudents = students.filter(student => {
-    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (student.barcode && student.barcode.includes(searchTerm));
-    const matchesClass = selectedClass === '' || 
-                        (selectedClass === 'no-class' && !student.classId) ||
-                        student.classId === selectedClass;
-    return matchesSearch && matchesClass;
-  });
+  // دالة لعرض اسم المجموعة مع الصف
+  const getClassDisplayName = (classId: string | null) => {
+    if (!classId) return 'بدون مجموعة';
+    const classData = classes.find(c => c.id === classId);
+    if (!classData) return 'مجموعة غير موجود';
+    
+    const grade = grades.find(g => g.id === classData.gradeId);
+    const gradeName = grade ? grade.name : '';
+    
+    return gradeName ? `${classData.name} - ${gradeName}` : classData.name;
+  };
+
+const filteredStudents = students.filter(student => {
+  const matchesSearch =
+    searchTerm.trim() === '' ||
+    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (student.barcode && student.barcode.includes(searchTerm));
+
+  const studentClassId = student.classId ? String(student.classId) : '';
+
+  const matchesClass =
+    selectedClass === '' ||
+    (selectedClass === 'no-class' && !student.classId) ||
+    studentClassId === selectedClass;
+
+  return matchesSearch && matchesClass;
+});
+
 
   // حساب البيانات للصفحة الحالية
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
@@ -36,6 +59,26 @@ export const StudentsManagement: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, selectedClass]);
+
+  // جلب الباركود عند فتح نموذج الإضافة
+  useEffect(() => {
+    if (showAddForm && !editingStudent) {
+      const fetchBarcode = async () => {
+        try {
+          setIsLoadingBarcode(true);
+          const barcode = await generateStudentBarcode();
+          setGeneratedBarcode(barcode);
+        } catch (error) {
+          console.error('Error generating barcode:', error);
+          setGeneratedBarcode('خطأ في توليد الكود');
+        } finally {
+          setIsLoadingBarcode(false);
+        }
+      };
+      fetchBarcode();
+    }
+  }, [showAddForm, editingStudent, generateStudentBarcode]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -63,13 +106,14 @@ export const StudentsManagement: React.FC = () => {
     } else {
       addStudent({
         name: formData.name,
-        barcode: formData.barcode || '',
+        barcode: generatedBarcode || formData.barcode || '',
         parentPhone: phoneDigits,
         parentEmail: formData.parentEmail,
         classId: formData.classId
       });
     }
-    setFormData({ name: '', barcode: '', parentPhone: '', classId: '' });
+    setFormData({ name: '', barcode: '', parentPhone: '', parentEmail: '', classId: '' });
+    setGeneratedBarcode('');
     setShowAddForm(false);
   };
 
@@ -100,112 +144,114 @@ export const StudentsManagement: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', barcode: '', parentPhone: '', classId: '' });
+    setFormData({ name: '', barcode: '', parentPhone: '', parentEmail: '', classId: '' });
     setEditingStudent(null);
+    setGeneratedBarcode('');
     setShowAddForm(false);
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-          <Users className="h-6 w-6 ml-2" />
+    <div className="section-spacing">
+      <div className="layout-between">
+        <h1 className="text-heading flex items-center">
+          <Users className="icon-lg ml-2" />
           إدارة الطلاب
         </h1>
         {hasPermission('studentsEdit') && (
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center"
-        >
-          <Plus className="h-4 w-4 ml-2" />
-          إضافة طالب
-        </button>
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="btn-primary flex items-center"
+          >
+            <Plus className="icon-sm ml-2" />
+            إضافة طالب
+          </button>
         )}
       </div>
 
       {/* نموذج الإضافة/التعديل */}
       {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">
-              {editingStudent ? 'تعديل الطالب' : 'إضافة طالب جديد'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2 className="modal-title">
+                {editingStudent ? 'تعديل الطالب' : 'إضافة طالب جديد'}
+              </h2>
+              <button onClick={resetForm} className="modal-close">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="modal-body">
+              <div className="form-field">
+                <label className="form-label">
                   اسم الطالب *
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="form-input-field"
                   required
                 />
               </div>
               {!editingStudent && (
-                <div className="bg-blue-50 p-3 rounded-md">
-                  <p className="text-sm text-blue-800">
-                    سيتم توليد كود الطالب تلقائياً: {generateStudentBarcode()}
+                <div className="alert-info">
+                  <p className="text-sm">
+                    {isLoadingBarcode 
+                      ? 'جاري توليد كود الطالب...' 
+                      : `سيتم توليد كود الطالب تلقائياً: ${generatedBarcode || 'لم يتم التوليد بعد'}`
+                    }
                   </p>
                 </div>
               )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="form-field">
+                <label className="form-label">
                   رقم هاتف ولي الأمر *
                 </label>
                 <input
                   type="tel"
                   value={formData.parentPhone}
                   onChange={(e) => setFormData({ ...formData, parentPhone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="form-input-field"
                   placeholder="201002246668 أو 966501234567"
                   maxLength={12}
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-small mt-1">
                   يجب إدخال 12 رقم بالضبط مع كود الدولة (مثال: 201002246668 أو 966501234567)
                 </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="form-field">
+                <label className="form-label">
                   البريد الإلكتروني لولي الأمر
                 </label>
                 <input
                   type="email"
                   value={formData.parentEmail || ''}
                   onChange={(e) => setFormData({ ...formData, parentEmail: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="form-input-field"
                   placeholder="parent@example.com"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  الفصل
+              <div className="form-field">
+                <label className="form-label">
+                  المجموعة
                 </label>
                 <select
                   value={formData.classId || ''}
                   onChange={(e) => setFormData({ ...formData, classId: e.target.value || null })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="form-input-field"
                 >
-                  <option value="">بدون فصل</option>
+                  <option value="">بدون مجموعة</option>
                   {classes.map(cls => (
-                    <option key={cls.id} value={cls.id}>{cls.name}</option>
+                    <option key={cls.id} value={cls.id}>{getClassDisplayName(cls.id)}</option>
                   ))}
                 </select>
               </div>
-              <div className="flex space-x-4 space-x-reverse">
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors duration-200"
-                >
+              <div className="modal-footer">
+                <button type="submit" className="btn-primary flex-1" disabled={isLoadingBarcode && !editingStudent}>
                   {editingStudent ? 'حفظ التغييرات' : 'إضافة الطالب'}
                 </button>
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 transition-colors duration-200"
-                >
+                <button type="button" onClick={resetForm} className="btn-secondary flex-1">
                   إلغاء
                 </button>
               </div>
@@ -215,30 +261,28 @@ export const StudentsManagement: React.FC = () => {
       )}
 
       {/* البحث والفلترة */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute right-3 top-3 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="البحث عن طالب..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+      <div className="filters-container">
+        <div className="filters-grid">
+          <div className="search-container">
+            <Search className="search-icon" />
+            <input
+              type="text"
+              placeholder="البحث عن طالب..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
           </div>
-          <div className="md:w-64">
+          <div>
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="form-input-field"
             >
-              <option value="">جميع الفصول</option>
-              <option value="no-class">بدون فصل</option>
+              <option value="">جميع المجموعات</option>
+              <option value="no-class">بدون مجموعة</option>
               {classes.map(cls => (
-                <option key={cls.id} value={cls.id}>{cls.name}</option>
+                <option key={cls.id} value={cls.id}>{getClassDisplayName(cls.id)}</option>
               ))}
             </select>
           </div>
@@ -246,160 +290,197 @@ export const StudentsManagement: React.FC = () => {
       </div>
 
       {/* قائمة الطلاب */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  الاسم
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  الكود
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  الفصل
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  رقم ولي الأمر
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  تاريخ الإضافة
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  الإجراءات
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {currentStudents.map((student) => {
-                const studentClass = classes.find(c => c.id === student.classId);
-                return (
-                  <tr key={student.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{student.name}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{student.barcode}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
+      <div className="table-container">
+        {/* عرض الجدول على الشاشات الكبيرة */}
+        <div className="desktop-table">
+          <div className="table-content">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>الاسم</th>
+                  <th>الكود</th>
+                  <th>المجموعة</th>
+                  <th>الصف الدراسي</th>
+                  <th>رقم ولي الأمر</th>
+                  <th>تاريخ الإضافة</th>
+                  <th>الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentStudents.map((student) => {
+                  const studentClass = classes.find(c => c.id === student.classId);
+                  const grade = studentClass ? grades.find(g => g.id === studentClass.gradeId) : null;
+                  return (
+                    <tr key={student.id}>
+                      <td>
+                        <div className="font-medium">{student.name}</div>
+                      </td>
+                      <td>{student.barcode}</td>
+                      <td>
                         {studentClass?.name || (
-                          <span className="text-red-500">بدون فصل</span>
+                          <span className="text-danger">بدون مجموعة</span>
                         )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{student.parentPhone}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
+                      </td>
+                      <td>
+                        {grade?.name || (
+                          <span className="text-gray-400">غير محدد</span>
+                        )}
+                      </td>
+                      <td>{student.parentPhone}</td>
+                      <td>
                         {student.createdAt ? new Date(student.createdAt).toLocaleDateString('en-GB') : 'غير محدد'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2 space-x-reverse">
-                        <button
-                          onClick={() => {/* عرض تفاصيل الطالب */}}
-                          className="text-blue-600 hover:text-blue-900 p-1"
-                          title="عرض التفاصيل"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleEdit(student)}
-                          disabled={!hasPermission('studentsEdit')}
-                          className="text-green-600 hover:text-green-900 p-1"
-                          title="تعديل"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(student.id)}
-                          disabled={!hasPermission('studentsDelete')}
-                          className="text-red-600 hover:text-red-900 p-1"
-                          title="حذف"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                      <td>
+                        <div className="table-actions">
+                          <button
+                            onClick={() => {/* عرض تفاصيل الطالب */}}
+                            className="table-btn text-blue-600 hover:text-blue-900"
+                            title="عرض التفاصيل"
+                          >
+                            <Eye className="icon-sm" />
+                          </button>
+                          <button
+                            onClick={() => handleEdit(student)}
+                            disabled={!hasPermission('studentsEdit')}
+                            className="table-btn text-green-600 hover:text-green-900"
+                            title="تعديل"
+                          >
+                            <Edit className="icon-sm" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(student.id)}
+                            disabled={!hasPermission('studentsDelete')}
+                            className="table-btn text-red-600 hover:text-red-900"
+                            title="حذف"
+                          >
+                            <Trash2 className="icon-sm" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
         
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-            <div className="flex-1 flex justify-between sm:hidden">
-              <button
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                السابق
-              </button>
-              <button
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
-                className="mr-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                التالي
-              </button>
-            </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  عرض <span className="font-medium">{startIndex + 1}</span> إلى{' '}
-                  <span className="font-medium">{Math.min(endIndex, filteredStudents.length)}</span> من{' '}
-                  <span className="font-medium">{filteredStudents.length}</span> نتيجة
-                </p>
-              </div>
-              <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                  <button
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    السابق
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+        {/* عرض البطاقات على الموبايل */}
+        <div className="mobile-cards">
+          {currentStudents.map((student) => {
+            const studentClass = classes.find(c => c.id === student.classId);
+            return (
+              <div key={student.id} className="mobile-card">
+                <div className="mobile-card-header">
+                  <div>
+                    <div className="mobile-card-title">{student.name}</div>
+                    <div className="mobile-card-subtitle">كود: {student.barcode}</div>
+                  </div>
+                  <div className="mobile-btn-group">
                     <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                        page === currentPage
-                          ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                      }`}
+                      onClick={() => {/* عرض تفاصيل الطالب */}}
+                      className="mobile-btn text-blue-600 hover:bg-blue-100"
+                      title="عرض التفاصيل"
                     >
-                      {page}
+                      <Eye className="icon-sm" />
                     </button>
-                  ))}
-                  <button
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    التالي
-                  </button>
-                </nav>
+                    <button
+                      onClick={() => handleEdit(student)}
+                      disabled={!hasPermission('studentsEdit')}
+                      className="mobile-btn text-green-600 hover:bg-green-100"
+                      title="تعديل"
+                    >
+                      <Edit className="icon-sm" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(student.id)}
+                      disabled={!hasPermission('studentsDelete')}
+                      className="mobile-btn text-red-600 hover:bg-red-100"
+                      title="حذف"
+                    >
+                      <Trash2 className="icon-sm" />
+                    </button>
+                  </div>
+                </div>
+                <div className="mobile-card-content">
+                  <div className="mobile-card-field">
+                    <div className="mobile-card-label">المجموعة</div>
+                    <div className="mobile-card-value">
+                      {getClassDisplayName(student.classId) || (
+                        <span className="text-danger">بدون مجموعة</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mobile-card-field">
+                    <div className="mobile-card-label">الصف الدراسي</div>
+                    <div className="mobile-card-value">
+                      {(() => {
+                        const studentClass = classes.find(c => c.id === student.classId);
+                        const grade = studentClass ? grades.find(g => g.id === studentClass.gradeId) : null;
+                        return grade?.name || <span className="text-gray-400">غير محدد</span>;
+                      })()}
+                    </div>
+                  </div>
+                  <div className="mobile-card-field">
+                    <div className="mobile-card-label">رقم ولي الأمر</div>
+                    <div className="mobile-card-value">{student.parentPhone}</div>
+                  </div>
+                  <div className="mobile-card-field">
+                    <div className="mobile-card-label">تاريخ الإضافة</div>
+                    <div className="mobile-card-value">
+                      {student.createdAt ? new Date(student.createdAt).toLocaleDateString('en-GB') : 'غير محدد'}
+                    </div>
+                  </div>
+                </div>
               </div>
+            );
+          })}
+        </div>
+        
+  {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className={`pagination-btn ${currentPage === 1 ? 'pagination-btn-disabled' : 'pagination-btn-inactive'}`}
+            >
+              السابق
+            </button>
+            
+            <div className="flex flex-wrap gap-1 justify-center">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`pagination-btn ${
+                    page === currentPage ? 'pagination-btn-active' : 'pagination-btn-inactive'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
             </div>
+            
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className={`pagination-btn ${currentPage === totalPages ? 'pagination-btn-disabled' : 'pagination-btn-inactive'}`}
+            >
+              التالي
+            </button>
           </div>
         )}
       </div>
-
+        
       {currentStudents.length === 0 && (
-        <div className="text-center py-12">
-          <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">
-            {filteredStudents.length === 0 ? 'لا توجد طلاب مطابقين للبحث' : 'لا توجد بيانات في هذه الصفحة'}
-          </p>
+        <div className="layout-center py-12">
+          <div className="text-center">
+            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-secondary">
+              {filteredStudents.length === 0 ? 'لا توجد طلاب مطابقين للبحث' : 'لا توجد بيانات في هذه الصفحة'}
+            </p>
+          </div>
         </div>
       )}
     </div>

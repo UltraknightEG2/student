@@ -1,13 +1,88 @@
 import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
+import { MessageTemplatesEditor } from './MessageTemplatesEditor';
 import { MessageSquare, Send, Settings, Eye, Edit, Trash2, Plus, Users, Wifi, WifiOff } from 'lucide-react';
 
 // تعريف قوالب الرسائل الافتراضية
 const messageTemplates = {
-  absence: 'عزيزي ولي الأمر، نود إعلامكم بأن الطالب/ة {studentName} كان غائباً في جلسة {className} بتاريخ {date}. نرجو المتابعة.',
-  performance: 'عزيزي ولي الأمر، تقرير أداء الطالب/ة {studentName} في جلسة {className}: تقييم المعلم: {rating}/5، المشاركة: {participation}/5، الواجب: {homework}',
-  reminder: 'تذكير: لديكم جلسة {className} غداً في تمام الساعة {time}. نتطلع لحضور الطالب/ة {studentName}',
-  announcement: 'إعلان مهم: {message}'
+  absence: `🔔 تنبيه غياب - نظام إدارة الحضور
+
+السلام عليكم ورحمة الله وبركاته
+عزيزي ولي الأمر المحترم،
+
+نود إعلامكم بأن الطالب/ة: {studentName}
+تغيب عن حصة اليوم
+
+📚 تفاصيل الحصة:
+• المادة: {subjectName}
+• المجموعة: {className}
+• المعلم: {teacherName}
+• التاريخ: {date}
+• الوقت: {time}
+• المكان: {locationName}
+
+نرجو المتابعة والتواصل مع إدارة المدرسة لمعرفة سبب الغياب.
+
+📞 للاستفسار: اتصل بإدارة المدرسة
+
+📚 نظام إدارة الحضور
+تطوير: Ahmed Hosny - 01272774494`,
+
+  performance: `📊 تقرير أداء الطالب - نظام إدارة الحضور
+
+السلام عليكم ورحمة الله وبركاته
+عزيزي ولي الأمر المحترم،
+
+👤 الطالب/ة: {studentName}
+📚 المادة: {subjectName}
+🏫 المجموعة: {className}
+👨‍🏫 المعلم: {teacherName}
+📅 التاريخ: {date}
+
+📈 تقييم الأداء:
+⭐ تقييم المعلم: {rating}/5
+📖 درجة التسميع: {recitationScore}/10
+📋 درجة الاختبار: {quizScore}%
+🙋 المشاركة: {participation}/5
+😊 السلوك: {behavior}
+📝 الواجب: {homework}
+
+💬 ملاحظات المعلم:
+{comments}
+
+📚 نظام إدارة الحضور
+شكراً لمتابعتكم المستمرة 🌟
+تطوير: Ahmed Hosny - 01272774494`,
+
+  reminder: `⏰ تذكير بموعد الحصة - نظام إدارة الحضور
+
+السلام عليكم ورحمة الله وبركاته
+عزيزي ولي الأمر المحترم،
+
+تذكير بموعد حصة غداً:
+
+👤 الطالب/ة: {studentName}
+📚 المادة: {subjectName}
+🏫 المجموعة: {className}
+👨‍🏫 المعلم: {teacherName}
+📅 التاريخ: {date}
+⏰ الوقت: {time}
+📍 المكان: {locationName}
+
+نتطلع لحضور الطالب/ة في الموعد المحدد.
+
+📚 نظام إدارة الحضور
+تطوير: Ahmed Hosny - 01272774494`,
+
+  announcement: `📢 إعلان مهم - نظام إدارة الحضور
+
+السلام عليكم ورحمة الله وبركاته
+عزيزي ولي الأمر المحترم،
+
+{message}
+
+📚 نظام إدارة الحضور
+تطوير: Ahmed Hosny - 01272774494`
 };
 
 export const WhatsAppManagement: React.FC = () => {
@@ -24,6 +99,7 @@ export const WhatsAppManagement: React.FC = () => {
   const [testResult, setTestResult] = useState<{ show: boolean, success: boolean, message: string }>({ show: false, success: false, message: '' });
   const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
   const [customTemplates, setCustomTemplates] = useState(messageTemplates);
+  const [forceTestEnabled, setForceTestEnabled] = useState(true); // جعل الاختبار متاح دائماً
 
   const handleTestMessage = async () => {
     if (!testPhoneNumber.trim()) {
@@ -32,7 +108,7 @@ export const WhatsAppManagement: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/whatsapp/test-message`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/whatsapp/test-message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -100,7 +176,7 @@ export const WhatsAppManagement: React.FC = () => {
 
   const handleSendMessage = () => {
     if (!selectedSession || !messageTemplate) {
-      alert('يرجى اختيار الجلسة وكتابة الرسالة');
+      alert('يرجى اختيار الحصة وكتابة الرسالة');
       return;
     }
 
@@ -121,7 +197,7 @@ export const WhatsAppManagement: React.FC = () => {
     try {
       console.log('🚀 بدء تهيئة الواتساب...');
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/whatsapp/initialize`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/whatsapp/initialize`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -134,21 +210,21 @@ export const WhatsAppManagement: React.FC = () => {
         setConnectionStatus(true);
         
         if (result.alreadyConnected) {
-          alert('✅ الواتساب متصل بالفعل ويعمل بشكل صحيح!');
+          alert('✅ WhatsApp-Web.js متصل بالفعل ويعمل بشكل صحيح!');
         } else {
-          alert('✅ تم تهيئة الواتساب بنجاح! يمكنك الآن إرسال الرسائل.');
+          alert('✅ تم تهيئة WhatsApp-Web.js بنجاح! يمكنك الآن إرسال الرسائل.');
         }
         
         // تحديث حالة الاتصال كل 10 ثواني
         const statusInterval = setInterval(async () => {
           try {
-            const statusResponse = await fetch(`${import.meta.env.VITE_API_URL}/whatsapp/status`);
+            const statusResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/whatsapp/status`);
             const statusResult = await statusResponse.json();
-            const isConnected = statusResult.data.connected;
+            const isConnected = statusResult.data.connected && statusResult.data.ready;
             setConnectionStatus(isConnected);
             
             if (!isConnected) {
-              console.log('⚠️ فقد الاتصال بالواتساب');
+              console.log('⚠️ فقد الاتصال بـ WhatsApp-Web.js');
               clearInterval(statusInterval);
             }
           } catch (error) {
@@ -158,11 +234,11 @@ export const WhatsAppManagement: React.FC = () => {
           }
         }, 10000);
       } else {
-        alert(`❌ فشل في تهيئة الواتساب: ${result.message}`);
+        alert(`❌ فشل في تهيئة WhatsApp-Web.js: ${result.message}`);
       }
     } catch (error: any) {
-      console.error('خطأ في تهيئة الواتساب:', error);
-      alert('❌ حدث خطأ أثناء تهيئة الواتساب: ' + error.message);
+      console.error('خطأ في تهيئة WhatsApp-Web.js:', error);
+      alert('❌ حدث خطأ أثناء تهيئة WhatsApp-Web.js: ' + error.message);
     } finally {
       setIsConnecting(false);
     }
@@ -207,24 +283,32 @@ export const WhatsAppManagement: React.FC = () => {
         </h1>
         <div className="flex items-center space-x-4 space-x-reverse">
           <div className="flex items-center space-x-2 space-x-reverse">
-            {connectionStatus ? (
+            {connectionStatus || forceTestEnabled ? (
               <Wifi className="h-5 w-5 text-green-600" />
             ) : (
               <WifiOff className="h-5 w-5 text-red-600" />
             )}
             <span className={`text-sm ${connectionStatus ? 'text-green-600' : 'text-red-600'}`}>
-              {connectionStatus ? 'متصل' : 'غير متصل'}
+              {connectionStatus ? 'متصل' : forceTestEnabled ? 'جاهز للاختبار' : 'غير متصل'}
             </span>
           </div>
-          {!connectionStatus && (
+          <div className="flex space-x-2 space-x-reverse">
+            {!connectionStatus && (
+              <button
+                onClick={handleInitializeWhatsApp}
+                disabled={isConnecting}
+                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors duration-200 flex items-center disabled:opacity-50"
+              >
+                {isConnecting ? 'جاري التهيئة...' : 'تهيئة الواتساب'}
+              </button>
+            )}
             <button
-              onClick={handleInitializeWhatsApp}
-              disabled={isConnecting}
-              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors duration-200 flex items-center disabled:opacity-50"
+              onClick={() => setForceTestEnabled(!forceTestEnabled)}
+              className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 text-sm"
             >
-              {isConnecting ? 'جاري التهيئة...' : 'تهيئة الواتساب'}
+              {forceTestEnabled ? 'تعطيل الاختبار' : 'تفعيل الاختبار'}
             </button>
-          )}
+          </div>
         </div>
       </div>
 
@@ -300,14 +384,14 @@ export const WhatsAppManagement: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    الجلسة
+                    الحصة
                   </label>
                   <select
                     value={selectedSession}
                     onChange={(e) => setSelectedSession(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">اختر الجلسة</option>
+                    <option value="">اختر الحصة</option>
                     {sessions.map(session => {
                       const sessionClass = classes.find(c => c.id === session.classId);
                       return (
@@ -339,7 +423,7 @@ export const WhatsAppManagement: React.FC = () => {
               <div className="flex justify-end">
                 <button
                   onClick={handleSendMessage}
-                  disabled={!connectionStatus}
+                  disabled={!connectionStatus && !forceTestEnabled}
                   className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 transition-colors duration-200 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="h-4 w-4 ml-2" />
@@ -352,9 +436,9 @@ export const WhatsAppManagement: React.FC = () => {
           {activeTab === 'test' && (
             <div className="space-y-6">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="text-lg font-medium text-blue-900 mb-2">اختبار إرسال الرسائل</h3>
+                <h3 className="text-lg font-medium text-blue-900 mb-2">اختبار WhatsApp-Web.js</h3>
                 <p className="text-sm text-blue-700">
-                  استخدم هذه الأداة لاختبار إرسال رسالة إلى رقم واحد للتأكد من عمل النظام قبل إرسال التقارير الكاملة.
+                  استخدم هذه الأداة لاختبار إرسال رسالة إلى رقم واحد للتأكد من عمل WhatsApp-Web.js قبل إرسال التقارير الكاملة.
                 </p>
               </div>
               
@@ -387,14 +471,15 @@ export const WhatsAppManagement: React.FC = () => {
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    حالة الاتصال
+                    حالة WhatsApp-Web.js
                   </label>
                   <div className={`px-3 py-2 rounded-md border ${
-                    connectionStatus 
+                    connectionStatus || forceTestEnabled
                       ? 'bg-green-50 border-green-200 text-green-800' 
                       : 'bg-red-50 border-red-200 text-red-800'
                   }`}>
-                    {connectionStatus ? '✅ متصل وجاهز للإرسال' : '❌ غير متصل'}
+                    {connectionStatus ? '✅ WhatsApp-Web.js متصل وجاهز للإرسال' : 
+                     forceTestEnabled ? '🧪 جاهز للاختبار (تأكد من تشغيل start-whatsapp-web-js.bat)' : '❌ غير متصل'}
                   </div>
                 </div>
               </div>
@@ -415,7 +500,7 @@ export const WhatsAppManagement: React.FC = () => {
               <div className="flex justify-center">
                 <button
                   onClick={handleTestMessage}
-                  disabled={!connectionStatus || !testPhoneNumber.trim()}
+                  disabled={(!connectionStatus && !forceTestEnabled) || !testPhoneNumber.trim()}
                   className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="h-4 w-4 ml-2" />
@@ -428,8 +513,10 @@ export const WhatsAppManagement: React.FC = () => {
                 <ul className="text-sm text-yellow-800 space-y-1">
                   <li>• استخدم رقمك الشخصي أولاً للاختبار</li>
                   <li>• تأكد من أن الرقم مكتوب بنفس التنسيق المخزن في قاعدة البيانات</li>
-                  <li>• إذا فشل الاختبار، تحقق من حالة الاتصال وأعد التهيئة</li>
+                  <li>• تأكد من تشغيل start-whatsapp-web-js.bat على جهازك الشخصي</li>
+                  <li>• إذا فشل الاختبار، تحقق من مسح QR Code أو أعد التهيئة</li>
                   <li>• انتظر بضع ثواني بين كل اختبار وآخر</li>
+                  <li>• تأكد من ظهور "WhatsApp Web جاهز بالكامل" في Terminal</li>
                 </ul>
               </div>
             </div>
@@ -437,7 +524,7 @@ export const WhatsAppManagement: React.FC = () => {
 
           {activeTab === 'logs' && (
             <div className="space-y-4">
-              <div className="overflow-x-auto">
+              <div className="desktop-table overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
@@ -476,6 +563,45 @@ export const WhatsAppManagement: React.FC = () => {
                 </table>
               </div>
 
+              {/* عرض بطاقات للموبايل - سجل الرسائل */}
+              <div className="mobile-cards">
+                {/* بيانات تجريبية لسجل الرسائل */}
+                <div className="mobile-card">
+                  <div className="mobile-card-header">
+                    <div className="mobile-card-title">أحمد محمد علي</div>
+                    <div className="mobile-btn-group">
+                      <button className="mobile-btn text-blue-600 hover:text-blue-900" title="عرض">
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <button className="mobile-btn text-red-600 hover:text-red-900" title="حذف">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="mobile-card-content">
+                    <div className="mobile-card-field">
+                      <div className="mobile-card-label">نوع الرسالة</div>
+                      <div className="mobile-card-value">غياب</div>
+                    </div>
+                    <div className="mobile-card-field">
+                      <div className="mobile-card-label">الحالة</div>
+                      <div className="mobile-card-value">
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                          تم التسليم
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mobile-card-field">
+                      <div className="mobile-card-label">تاريخ الإرسال</div>
+                      <div className="mobile-card-value">
+                        {new Date().toLocaleString('en-GB')}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {whatsappLogs.length === 0 && (
                 <div className="text-center py-12">
                   <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -486,81 +612,7 @@ export const WhatsAppManagement: React.FC = () => {
           )}
 
           {activeTab === 'templates' && (
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium text-gray-900">قوالب الرسائل</h3>
-                <div className="flex space-x-2 space-x-reverse">
-                  <button
-                    onClick={() => {
-                      setCustomTemplates(messageTemplates);
-                      localStorage.setItem('whatsapp_templates', JSON.stringify(messageTemplates));
-                    }}
-                    className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors duration-200 flex items-center"
-                  >
-                    استعادة الافتراضي
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {Object.entries(customTemplates).map(([type, template]) => (
-                  <div key={type} className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-gray-900">{getMessageTypeText(type)}</h4>
-                      <div className="flex space-x-2 space-x-reverse">
-                        <button 
-                          onClick={() => setEditingTemplate(type)}
-                          className="text-green-600 hover:text-green-900 p-1" 
-                          title="تعديل"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                    {editingTemplate === type ? (
-                      <div className="space-y-2">
-                        <textarea
-                          value={template}
-                          onChange={(e) => setCustomTemplates({
-                            ...customTemplates,
-                            [type]: e.target.value
-                          })}
-                          rows={4}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                        />
-                        <div className="flex space-x-2 space-x-reverse">
-                          <button
-                            onClick={() => handleSaveTemplate(type, customTemplates[type as keyof typeof customTemplates])}
-                            className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
-                          >
-                            حفظ
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingTemplate(null);
-                              setCustomTemplates({
-                                ...customTemplates,
-                                [type]: template
-                              });
-                            }}
-                            className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400"
-                          >
-                            إلغاء
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="text-sm text-gray-600 whitespace-pre-wrap">{template}</p>
-                        <div className="mt-2 text-xs text-gray-500">
-                          المتغيرات المتاحة: {'{studentName}'}, {'{className}'}, {'{date}'}, {'{time}'}, {'{rating}'}, {'{participation}'}, {'{homework}'}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+            <MessageTemplatesEditor />
           )}
         </div>
       </div>

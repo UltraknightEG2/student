@@ -14,13 +14,10 @@ class WhatsAppInitializer {
   async initialize() {
     try {
       console.log('🚀 بدء تهيئة الواتساب...');
-      console.log(`📱 اسم الجلسة: ${config.session}`);
+      console.log(`📱 اسم الحصة: ${config.session}`);
       console.log(`🗂️  مجلد التوكن: ${config.folderNameToken}`);
       
-      // التأكد من وجود المجلدات
       await this.ensureDirectories();
-      
-      // تنظيف الجلسات القديمة إذا لزم الأمر
       await this.cleanOldSessions();
       
       this.client = await venom.create(
@@ -60,7 +57,7 @@ class WhatsAppInitializer {
       const daysSinceModified = (Date.now() - stats.mtime.getTime()) / (1000 * 60 * 60 * 24);
       
       if (daysSinceModified > 7) {
-        console.log('🧹 تنظيف الجلسة القديمة...');
+        console.log('🧹 تنظيف الحصة القديمة...');
         await fs.remove(tokenPath);
       }
     }
@@ -71,8 +68,6 @@ class WhatsAppInitializer {
     console.log('\n📱 QR Code جديد - المحاولة:', attempts);
     console.log('🔗 URL Code:', urlCode);
     console.log('\n' + asciiQR + '\n');
-    
-    // حفظ QR Code كصورة
     this.saveQRCode(base64Qr, attempts);
     
     if (attempts >= this.maxQRAttempts) {
@@ -100,47 +95,46 @@ class WhatsAppInitializer {
   }
 
   onStatusChange(statusSession, session) {
-    console.log('\n📊 تغيير حالة الجلسة:');
+    console.log('\n📊 تغيير حالة الحصة:');
     console.log('🔄 الحالة:', statusSession);
-    console.log('📱 الجلسة:', session);
-    
-    switch (statusSession) {
-      case 'isLogged':
-        this.isConnected = true;
-        console.log('✅ تم تسجيل الدخول بنجاح!');
-        break;
-      case 'notLogged':
-        this.isConnected = false;
-        console.log('❌ لم يتم تسجيل الدخول');
-        break;
-      case 'browserClose':
-        console.log('🔒 تم إغلاق المتصفح');
-        break;
-      case 'qrReadSuccess':
-        console.log('✅ تم مسح QR Code بنجاح!');
-        break;
-      case 'qrReadFail':
-        console.log('❌ فشل في مسح QR Code');
-        break;
-      default:
-        console.log('ℹ️  حالة غير معروفة:', statusSession);
+    console.log('📱 الحصة:', session);
+
+    // الحالات المستقرة بعد تحديث Venom
+    const connectedStates = ['isLogged', 'CONNECTED', 'waitChat', 'qrReadSuccess'];
+
+    if (connectedStates.includes(statusSession)) {
+      this.isConnected = true;
+      console.log('✅ تم تسجيل الدخول/الاتصال بنجاح!');
+    } else if (statusSession === 'notLogged') {
+      this.isConnected = false;
+      console.log('❌ لم يتم تسجيل الدخول');
+    } else if (statusSession === 'browserClose') {
+      console.log('🔒 تم إغلاق المتصفح');
+    } else if (statusSession === 'qrReadFail') {
+      console.log('❌ فشل في مسح QR Code');
+    } else {
+      this.isConnected = false;
+      console.log('ℹ️  حالة غير معروفة:', statusSession);
     }
   }
 
   async setupEventHandlers() {
     if (!this.client) return;
 
-    // معالج الرسائل الواردة
     this.client.onMessage(async (message) => {
       console.log('📨 رسالة واردة:', message.from, message.body);
     });
 
-    // معالج حالة الاتصال
     this.client.onStateChange((state) => {
       console.log('🔄 تغيير حالة الاتصال:', state);
+
+      // الحالات المستقرة بعد التحديث
+      const stableStates = ['CONNECTED', 'waitChat', 'qrReadSuccess', 'isLogged'];
+      if (stableStates.includes(state)) {
+        this.isConnected = true;
+      }
     });
 
-    // معالج قطع الاتصال
     this.client.onStreamChange((state) => {
       console.log('📡 تغيير حالة البث:', state);
     });
@@ -149,16 +143,12 @@ class WhatsAppInitializer {
   async testConnection() {
     try {
       console.log('\n🧪 اختبار الاتصال...');
-      
       const hostDevice = await this.client.getHostDevice();
       console.log('📱 معلومات الجهاز:', hostDevice);
-      
       const connectionState = await this.client.getConnectionState();
       console.log('🔗 حالة الاتصال:', connectionState);
-      
       const batteryLevel = await this.client.getBatteryLevel();
       console.log('🔋 مستوى البطارية:', batteryLevel + '%');
-      
       console.log('✅ اختبار الاتصال مكتمل!');
     } catch (error) {
       console.error('❌ خطأ في اختبار الاتصال:', error);
@@ -194,7 +184,6 @@ class WhatsAppInitializer {
   }
 }
 
-// تشغيل التهيئة
 async function main() {
   const initializer = new WhatsAppInitializer();
   const success = await initializer.initialize();

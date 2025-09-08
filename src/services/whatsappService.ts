@@ -43,7 +43,7 @@ class WhatsAppService {
       console.log('Initializing WhatsApp connection...');
       
       this.client = await venom.create(
-        'attendance-system', // اسم الجلسة
+        'attendance-system', // اسم الحصة
         (base64Qr, asciiQR, attempts, urlCode) => {
           console.log('QR Code received. Scan it with your phone:');
           console.log(asciiQR);

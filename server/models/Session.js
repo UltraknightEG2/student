@@ -64,7 +64,7 @@ class Session {
       notes || null
     ]);
     
-    console.log('✅ تم إنشاء الجلسة بنجاح، ID:', result.insertId);
+    console.log('✅ تم إنشاء الحصة بنجاح، ID:', result.insertId);
     return result.insertId;
   }
 
@@ -101,7 +101,7 @@ class Session {
       id
     ]);
     
-    console.log('✅ تم تحديث الجلسة، عدد الصفوف المتأثرة:', result.affectedRows);
+    console.log('✅ تم تحديث الحصة، عدد الصفوف المتأثرة:', result.affectedRows);
     return result.affectedRows > 0;
   }
 
@@ -137,17 +137,25 @@ class Session {
     return await executeQuery(query, [sessionId]);
   }
 
-  static async getSessionReports(sessionId) {
-    const query = `
-      SELECT s.id, s.name, r.teacher_rating, r.quiz_score, r.participation, 
-             r.behavior, r.homework, r.comments
-      FROM students s
-      JOIN reports r ON s.id = r.student_id
-      WHERE r.session_id = ?
-      ORDER BY s.name
-    `;
-    return await executeQuery(query, [sessionId]);
-  }
+static async getSessionReports(sessionId) {
+  const query = `
+    SELECT s.id, s.name, 
+           r.teacher_rating, 
+           r.quiz_score, 
+           r.recitation_score,   -- ✅ 
+           r.participation, 
+           r.behavior, 
+           r.homework, 
+           r.comments
+    FROM students s
+    JOIN reports r ON s.id = r.student_id
+    WHERE r.session_id = ?
+    ORDER BY s.name
+  `;
+  return await executeQuery(query, [sessionId]);
+}
+
+
 }
 
 module.exports = Session;

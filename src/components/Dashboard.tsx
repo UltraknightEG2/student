@@ -35,14 +35,14 @@ export const Dashboard: React.FC = () => {
       change: '+12%'
     },
     {
-      title: 'إجمالي الفصول',
+      title: 'إجمالي المجموعات',
       value: classes.length,
       icon: BookOpen,
       color: 'bg-green-500',
       change: '+3%'
     },
     {
-      title: 'الجلسات اليوم',
+      title: 'الحصص اليوم',
       value: sessions.filter(s => s.status === 'active').length,
       icon: Calendar,
       color: 'bg-purple-500',
@@ -216,7 +216,7 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* الفصول النشطة */}
+      {/* المجموعات النشطة */}
     </div>
   );
 };

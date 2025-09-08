@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User, Student, Class, Session, Attendance, Report, WhatsAppLog, DashboardStats, Alert, Teacher, Subject, UserPermissions, Location } from '../types';
+import { Grade } from '../types';
 import { apiService } from '../services/apiService';
 
 interface AppContextType {
@@ -15,6 +16,7 @@ interface AppContextType {
   teachers: Teacher[];
   subjects: Subject[];
   locations: Location[];
+  grades: Grade[];
   loading: boolean;
   error: string | null;
   login: (username: string, password: string) => Promise<boolean>;
@@ -44,6 +46,10 @@ interface AppContextType {
   addLocation: (location: Omit<Location, 'id' | 'createdAt'>) => Promise<void>;
   updateLocation: (id: string, location: Partial<Location>) => Promise<void>;
   deleteLocation: (id: string) => Promise<void>;
+  // Grades
+  addGrade: (grade: Omit<Grade, 'id' | 'createdAt'>) => Promise<void>;
+  updateGrade: (id: string, grade: Partial<Grade>) => Promise<void>;
+  deleteGrade: (id: string) => Promise<void>;
   // Sessions
   addSession: (session: Omit<Session, 'id' | 'createdAt'>) => Promise<void>;
   updateSession: (id: string, session: Partial<Session>) => Promise<void>;
@@ -97,6 +103,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [grades, setGrades] = useState<Grade[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [whatsappConnected, setWhatsappConnected] = useState(false);
@@ -110,22 +117,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         const userData = JSON.parse(savedUser);
         
-        // التحقق من انتهاء صلاحية الجلسة (24 ساعة)
+        // التحقق من انتهاء صلاحية الحصة (24 ساعة)
         if (loginTime) {
           const loginTimestamp = parseInt(loginTime);
           const currentTime = Date.now();
           const sessionDuration = 24 * 60 * 60 * 1000; // 24 ساعة
           
           if (currentTime - loginTimestamp > sessionDuration) {
-            // انتهت صلاحية الجلسة
+            // انتهت صلاحية الحصة
             localStorage.removeItem('currentUser');
             localStorage.removeItem('loginTime');
-            console.log('🔒 انتهت صلاحية الجلسة');
+            console.log('🔒 انتهت صلاحية الحصة');
           } else {
             setCurrentUser(userData);
           }
         } else {
-          // إذا لم يكن هناك وقت تسجيل دخول، احذف الجلسة
+          // إذا لم يكن هناك وقت تسجيل دخول، احذف الحصة
           localStorage.removeItem('currentUser');
         }
       } catch (error) {
@@ -164,7 +171,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         usersRes,
         teachersRes,
         subjectsRes,
-        locationsRes
+        locationsRes,
+        gradesRes
       ] = await Promise.all([
         apiService.getStudents(),
         apiService.getClasses(),
@@ -174,7 +182,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentUser.role === 'admin' ? apiService.getUsers() : Promise.resolve({ data: [] }),
         apiService.getTeachers(),
         apiService.getSubjects(),
-        apiService.getLocations()
+        apiService.getLocations(),
+        apiService.getGrades()
       ]);
 
       // معالجة البيانات مع التحقق من صحة البيانات
@@ -205,6 +214,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 processed[field] = new Date();
               }
             }
+            if (item.id === 'sessions-reports' && !hasPermission('reports')) {
+              return null;
+            }
           });
           
           return processed;
@@ -213,13 +225,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       console.log('📥 البيانات المستلمة من الخادم:');
       console.log('- الطلاب:', studentsRes.data?.length || 0);
-      console.log('- الفصول:', classesRes.data?.length || 0);
-      console.log('- الجلسات:', sessionsRes.data?.length || 0);
+      console.log('- المجموعات:', classesRes.data?.length || 0);
+      console.log('- الحصص:', sessionsRes.data?.length || 0);
       console.log('- الحضور:', attendanceRes.data?.length || 0);
       console.log('- التقارير:', reportsRes.data?.length || 0);
       console.log('- المعلمين:', teachersRes.data?.length || 0);
       console.log('- المواد:', subjectsRes.data?.length || 0);
       console.log('- الأماكن:', locationsRes.data?.length || 0);
+      console.log('- الصفوف:', gradesRes.data?.length || 0);
 
       setStudents(processData(studentsRes.data || [], ['createdAt', 'dateOfBirth']));
       setClasses(processData(classesRes.data || [], ['createdAt']));
@@ -230,10 +243,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setTeachers(processData(teachersRes.data || [], ['createdAt']));
       setSubjects(processData(subjectsRes.data || [], ['createdAt']));
       setLocations(processData(locationsRes.data || [], ['createdAt']));
+      setGrades(processData(gradesRes.data || [], ['createdAt']));
       
       console.log('✅ تم تحديث البيانات بنجاح');
       console.log('📊 البيانات المحفوظة في الحالة:');
-      console.log('- الجلسات المحفوظة:', sessionsRes.data?.length || 0);
+      console.log('- الحصص المحفوظة:', sessionsRes.data?.length || 0);
     } catch (error) {
       console.error('❌ خطأ في تحديث البيانات:', error);
       setError('حدث خطأ في تحميل البيانات');
@@ -287,6 +301,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTeachers([]);
     setSubjects([]);
     setLocations([]);
+    setGrades([]);
     setWhatsappLogs([]);
     localStorage.removeItem('currentUser');
     localStorage.removeItem('loginTime');
@@ -371,6 +386,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Classes
   const addClass = async (classData: Omit<Class, 'id' | 'createdAt'>) => {
     try {
+      console.log('📝 إضافة مجموعة جديد:', classData);
       const response = await apiService.createClass(classData);
       if (response.success) {
         await refreshData();
@@ -383,6 +399,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateClass = async (id: string, classData: Partial<Class>) => {
     try {
+      console.log('✏️ تحديث المجموعة:', id, classData);
       const response = await apiService.updateClass(id, classData);
       if (response.success) {
         await refreshData();
@@ -516,6 +533,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // Grades
+  const addGrade = async (grade: Omit<Grade, 'id' | 'createdAt'>) => {
+    try {
+      const response = await apiService.createGrade(grade);
+      if (response.success) {
+        await refreshData();
+      }
+    } catch (error) {
+      console.error('Error adding grade:', error);
+      throw error;
+    }
+  };
+
+  const updateGrade = async (id: string, grade: Partial<Grade>) => {
+    try {
+      const response = await apiService.updateGrade(id, grade);
+      if (response.success) {
+        await refreshData();
+      }
+    } catch (error) {
+      console.error('Error updating grade:', error);
+      throw error;
+    }
+  };
+
+  const deleteGrade = async (id: string) => {
+    try {
+      const response = await apiService.deleteGrade(id);
+      if (response.success) {
+        await refreshData();
+      }
+    } catch (error) {
+      console.error('Error deleting grade:', error);
+      throw error;
+    }
+  };
+
   // Sessions
   const addSession = async (session: Omit<Session, 'id' | 'createdAt'>) => {
     try {
@@ -530,15 +584,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         notes: session.notes || null
       };
       
-      console.log('📤 بيانات الجلسة المرسلة للخادم:', sessionData);
+      console.log('📤 بيانات الحصة المرسلة للخادم:', sessionData);
       
       const response = await apiService.createSession(sessionData);
       if (response.success) {
-        console.log('✅ تم إضافة الجلسة بنجاح');
+        console.log('✅ تم إضافة الحصة بنجاح');
         await refreshData();
       } else {
-        console.error('❌ فشل في إضافة الجلسة:', response.message);
-        throw new Error(response.message || 'فشل في إضافة الجلسة');
+        console.error('❌ فشل في إضافة الحصة:', response.message);
+        throw new Error(response.message || 'فشل في إضافة الحصة');
       }
     } catch (error) {
       console.error('Error adding session:', error);
@@ -548,7 +602,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateSession = async (id: string, session: Partial<Session>) => {
     try {
-      console.log('✏️ تحديث الجلسة:', id, session);
+      console.log('✏️ تحديث الحصة:', id, session);
       
       const sessionData = {
         classId: session.classId,
@@ -566,15 +620,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       });
       
-      console.log('📤 بيانات الجلسة المرسلة للتحديث:', sessionData);
+      console.log('📤 بيانات الحصة المرسلة للتحديث:', sessionData);
       
       const response = await apiService.updateSession(id, sessionData);
       if (response.success) {
-        console.log('✅ تم تحديث الجلسة بنجاح');
+        console.log('✅ تم تحديث الحصة بنجاح');
         await refreshData();
       } else {
-        console.error('❌ فشل في تحديث الجلسة:', response.message);
-        throw new Error(response.message || 'فشل في تحديث الجلسة');
+        console.error('❌ فشل في تحديث الحصة:', response.message);
+        throw new Error(response.message || 'فشل في تحديث الحصة');
       }
     } catch (error) {
       console.error('Error updating session:', error);
@@ -596,15 +650,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const toggleSessionStatus = async (id: string) => {
     try {
-      console.log('🔄 تغيير حالة الجلسة:', id);
+      console.log('🔄 تغيير حالة الحصة:', id);
       const response = await apiService.toggleSessionStatus(id);
       console.log('📡 استجابة تغيير الحالة:', response);
       if (response.success) {
-        console.log('✅ تم تغيير حالة الجلسة بنجاح');
+        console.log('✅ تم تغيير حالة الحصة بنجاح');
         await refreshData();
       } else {
-        console.error('❌ فشل في تغيير حالة الجلسة:', response.message);
-        throw new Error(response.message || 'فشل في تغيير حالة الجلسة');
+        console.error('❌ فشل في تغيير حالة الحصة:', response.message);
+        throw new Error(response.message || 'فشل في تغيير حالة الحصة');
       }
     } catch (error) {
       console.error('Error toggling session status:', error);
@@ -614,9 +668,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const getSessionStudents = async (sessionId: string) => {
     try {
-      console.log('👥 جلب طلاب الجلسة:', sessionId);
+      console.log('👥 جلب طلاب الحصة:', sessionId);
       const response = await apiService.getSessionStudents(sessionId);
-      console.log('📡 استجابة طلاب الجلسة:', response);
+      console.log('📡 استجابة طلاب الحصة:', response);
       return response.data || [];
     } catch (error) {
       console.error('Error getting session students:', error);
@@ -899,6 +953,7 @@ console.log('🔑 صلاحيات المستخدم:', currentUser?.permissions);
         teachers,
         subjects,
         locations,
+        grades,
         loading,
         error,
         login,
@@ -923,6 +978,9 @@ console.log('🔑 صلاحيات المستخدم:', currentUser?.permissions);
         addLocation,
         updateLocation,
         deleteLocation,
+        addGrade,
+        updateGrade,
+        deleteGrade,
         addSession,
         updateSession,
         deleteSession,
